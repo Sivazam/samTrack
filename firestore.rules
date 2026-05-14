@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function tenantId() { return request.auth.token.tenantId; }
+    function role() { return request.auth.token.role; }
+    function isSuperAdmin() { return role() == 'SUPER_ADMIN'; }
+    function isAdminOrManager() { return role() in ['COLLEGE_ADMIN', 'MANAGER'] || isSuperAdmin; }
+    function isPRO() { return role() == 'PRO'; }
+    function sameTenant(t) { return tenantId() == t; }
+    function isAuthenticated() { return request.auth != null; }
+
+    // ── Tenants ───────────────────────────────────────────────────────────
+    match /tenants/{tid} {
+      allow read: if isAuthenticated;
+      // Allow create for bootstrap (init page) when no SUPER_ADMIN exists yet
+      allow create: if isAuthenticated;
+      allow update: if isSuperAdmin;
+      allow delete: if false;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isAuthenticated && (
+        request.auth.uid == uid
+        || (sameTenant(resource.data.tenantId) && isAdminOrManager)
+        || isSuperAdmin
+      );
+      // Allow creating own user doc (bootstrap / init page)
+      allow create: if isAuthenticated && request.auth.uid == uid;
+      // Allow updates via cloud functions or own doc (for profile updates)
+      allow update: if isAuthenticated && (
+        request.auth.uid == uid
+        || isSuperAdmin
+        || (sameTenant(resource.data.tenantId) && isAdminOrManager)
+      );
+      allow delete: if false;
+    }
+
+    // ── Username Index ────────────────────────────────────────────────────
+    match /usernameIndex/{key} {
+      allow read: if isAuthenticated;
+      // Allow create for bootstrap (init page) by the user whose uid is in the doc
+      allow create: if isAuthenticated;
+      allow delete: if false;
+      allow update: if false;
+    }
+
+    // ── Divisions ─────────────────────────────────────────────────────────
+    match /divisions/{did} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId);
+      allow write: if false; // CF only
+    }
+
+    // ── Teams ─────────────────────────────────────────────────────────────
+    match /teams/{tmid} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId);
+      allow write: if false; // CF only
+    }
+
+    // ── Leads ─────────────────────────────────────────────────────────────
+    match /leads/{lid} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId)
+                  && (isAdminOrManager || (isPRO && request.auth.uid in resource.data.assignedPROUids));
+      allow write: if false; // CF only
+
+      match /statusUpdates/{uid} {
+        allow read: if isAuthenticated && sameTenant(resource.data.tenantId)
+                    && (isAdminOrManager || (isPRO && request.auth.uid in get(/databases/$(database)/documents/leads/$(lid)).data.assignedPROUids));
+        allow create: if false; // CF only (server enforces GPS logic)
+        allow update, delete: if false; // append-only
+      }
+    }
+
+    // ── Lead Assignments (denorm for search) ──────────────────────────────
+    match /leadAssignments/{aid} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId)
+                  && (isAdminOrManager || (isPRO && request.auth.uid in resource.data.assignedPROUids));
+      allow write: if false; // CF only
+    }
+
+    // ── Reminders ─────────────────────────────────────────────────────────
+    match /reminders/{rid} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId)
+                  && (isAdminOrManager || request.auth.uid in resource.data.recipientUids);
+      allow create, update: if false; // CF only
+    }
+
+    // ── Tenant Config ─────────────────────────────────────────────────────
+    match /tenantConfig/{tid} {
+      allow read: if isAuthenticated;
+      // Allow create for bootstrap (init page)
+      allow create: if isAuthenticated;
+      allow update: if isAuthenticated && (sameTenant(tid) && isAdminOrManager);
+      allow delete: if false;
+    }
+
+    // ── Import Batches ────────────────────────────────────────────────────
+    match /importBatches/{bid} {
+      allow read: if isAuthenticated && sameTenant(resource.data.tenantId) && isAdminOrManager;
+      allow write: if false; // CF only
+    }
+
+    // ── Tenant Stats ──────────────────────────────────────────────────────
+    match /tenant_stats/{tid} {
+      allow read: if isAuthenticated && (sameTenant(tid) || isSuperAdmin);
+      allow write: if false; // triggers only
+    }
+
+    // ── Tenant Daily Stats ────────────────────────────────────────────────
+    match /tenant_daily_stats/{key} {
+      allow read: if isAuthenticated && (sameTenant(resource.data.tenantId) || isSuperAdmin);
+      allow write: if false; // triggers only
+    }
+
+    // ── Processed Events (idempotency) ────────────────────────────────────
+    match /_processedEvents/{eid} {
+      allow read, write: if false; // CF only
+    }
+  }
+}

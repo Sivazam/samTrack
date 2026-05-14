@@ -1,0 +1,10 @@
+import * as functions from 'firebase-functions';
+export declare const onLeadCreated: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onLeadUpdated: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
+export declare const onLeadDeleted: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onStatusUpdateCreated: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onTeamUpdated: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
+export declare const onTeamDeleted: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onReminderCreated: functions.CloudFunction<functions.firestore.QueryDocumentSnapshot>;
+export declare const onReminderStatusChanged: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;
+export declare const onUserUpdated: functions.CloudFunction<functions.Change<functions.firestore.QueryDocumentSnapshot>>;

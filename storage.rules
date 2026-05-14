@@ -1,0 +1,87 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isWholesaler() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'WHOLESALER_ADMIN' ||
+        (request.auth.token.keys().hasAny(['roles']) && 'WHOLESALER_ADMIN' in request.auth.token.roles)
+      );
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'SUPER_ADMIN' ||
+        (request.auth.token.keys().hasAny(['roles']) && 'SUPER_ADMIN' in request.auth.token.roles)
+      );
+    }
+
+    // Tenant match: handle both singular tenantId claim and tenantIds array claim.
+    function tenantMatches(tenantId) {
+      return (request.auth.token.keys().hasAny(['tenantId']) && request.auth.token.tenantId == tenantId)
+          || (request.auth.token.keys().hasAny(['tenantIds']) && tenantId in request.auth.token.tenantIds);
+    }
+
+    // Payment Proofs
+    // Path: payments/{tenantId}/{workerId}/{filename}
+    match /payments/{tenantId}/{workerId}/{fileName} {
+      allow create, update: if isAuthenticated() 
+                   && (request.auth.uid == workerId || (isWholesaler() && request.auth.token.tenantId == tenantId))
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated() 
+                   && (request.auth.uid == workerId || (isWholesaler() && request.auth.token.tenantId == tenantId));
+      allow read: if isAuthenticated();
+    }
+
+    // Tenant QR Codes & Profile Info
+    // Path: tenants/{tenantId}/qr-codes/{filename}
+    match /tenants/{tenantId}/{allPaths=**} {
+      allow create, update: if isAuthenticated() 
+                   && (isWholesaler() || isSuperAdmin())
+                   && (request.auth.token.tenantId == tenantId || isSuperAdmin())
+                   && request.resource.size < 2 * 1024 * 1024 // 2MB limit for QR codes
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated() 
+                   && (isWholesaler() || isSuperAdmin())
+                   && (request.auth.token.tenantId == tenantId || isSuperAdmin());
+      allow read: if isAuthenticated();
+    }
+    
+    // License Images
+    // Path: licenses/{retailerId}/{filename}
+    match /licenses/{retailerId}/{fileName} {
+      // Allow upload if user is the retailer OR a line worker updating it
+      allow write: if isAuthenticated() 
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if isAuthenticated();
+    }
+
+    // Delivery Parcel Photos (Cross-Wholesaler Delivery feature)
+    // Path: deliveries/{tenantId}/{filename}
+    // Wholesaler admins of the tenant can upload/delete; all authed users in tenant can read.
+    match /deliveries/{tenantId}/{fileName} {
+      allow create, update: if isAuthenticated()
+                   && (isWholesaler() || isSuperAdmin())
+                   && (tenantMatches(tenantId) || isSuperAdmin())
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated()
+                   && (isWholesaler() || isSuperAdmin())
+                   && (tenantMatches(tenantId) || isSuperAdmin());
+      allow read: if isAuthenticated();
+    }
+    
+    // Default block for other paths
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+  }
+}
