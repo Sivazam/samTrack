@@ -3,7 +3,7 @@ import * as functions from 'firebase-functions';
 
 // ─── Auth Verification ───────────────────────────────────────────────────
 export async function verifyAuthToken(
-  context: functions.https.CallableContext
+  context: any
 ): Promise<admin.auth.DecodedIdToken> {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required');

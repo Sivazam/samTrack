@@ -16,7 +16,8 @@
   "main": "lib/index.js",
   "dependencies": {
     "firebase-admin": "^11.11.1",
-    "firebase-functions": "^5.1.0"
+    "firebase-functions": "^5.1.0",
+    "nextjs_tailwind_shadcn_ts": "file:.."
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.0.0",

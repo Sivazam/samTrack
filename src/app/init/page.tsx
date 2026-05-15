@@ -9,18 +9,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, AlertCircle, Shield } from 'lucide-react';
 import Image from 'next/image';
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
 /**
  * Super Admin Bootstrap Page (/init)
@@ -115,7 +107,8 @@ export default function InitPage() {
     const usernameLower = formData.username.toLowerCase();
 
     try {
-      // Step 1: Create Firebase Auth account
+      // ── Step 1: Create Firebase Auth account ────────────────────────────
+      console.log('[INIT] Step 1: Creating authentication account...');
       setStep('Creating authentication account...');
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -123,85 +116,151 @@ export default function InitPage() {
         formData.password
       );
       const uid = userCredential.user.uid;
+      console.log('[INIT] Step 1 Complete. UID:', uid);
 
-      // Step 2: Create tenant document
-      setStep('Creating tenant...');
-      const tenantRef = doc(db, 'tenants', 'samhitha-college');
-      const tenantDoc = await getDoc(tenantRef);
-      let tenantId = 'samhitha-college';
+      // Get a fresh ID token for REST API calls.
+      const idToken = await userCredential.user.getIdToken();
 
-      if (!tenantDoc.exists()) {
-        await setDoc(tenantRef, {
+      // ── Firestore REST API setup ────────────────────────────────────────
+      // Bypass the Firestore client SDK entirely (its WebChannel transport
+      // hangs on this network). Plain HTTPS + Bearer token = same path Auth
+      // uses, which we know works.
+      const projectId = 'samhitaadmissiontracker';
+      const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+
+      // Convert plain JS values to Firestore REST "Value" format.
+      const toValue = (v: any): any => {
+        if (v === null || v === undefined) return { nullValue: null };
+        if (typeof v === 'boolean') return { booleanValue: v };
+        if (typeof v === 'number') {
+          return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+        }
+        if (typeof v === 'string') return { stringValue: v };
+        if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
+        if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
+        return { stringValue: String(v) };
+      };
+      const toFields = (obj: Record<string, any>): Record<string, any> => {
+        const out: Record<string, any> = {};
+        for (const [k, val] of Object.entries(obj)) out[k] = toValue(val);
+        return out;
+      };
+
+      // PATCH = create-or-overwrite at the given document path.
+      const writeDoc = async (path: string, data: Record<string, any>, op: string) => {
+        console.log(`[INIT] Writing ${path}...`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        try {
+          const res = await fetch(`${baseUrl}/${path}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ fields: toFields(data) }),
+            signal: ctrl.signal,
+          });
+          if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`${op} failed (${res.status}): ${errBody}`);
+          }
+          console.log(`[INIT] Wrote ${path} OK.`);
+        } catch (e: any) {
+          if (e.name === 'AbortError') {
+            throw new Error(`${op} timed out after 20 s. Check internet/firewall.`);
+          }
+          throw e;
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+
+      // ISO timestamp instead of serverTimestamp() — the REST shape for
+      // server-generated timestamps requires field transforms which add
+      // complexity for no real benefit on this one-time bootstrap.
+      const now = new Date().toISOString();
+
+      try {
+        const tenantId = 'samhitha-college';
+
+        // Step 2: Tenant document
+        setStep('Creating tenant...');
+        await writeDoc(`tenants/${tenantId}`, {
           name: 'Samhitha College',
           type: 'COLLEGE',
           status: 'ACTIVE',
           fcmDevices: [],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
+          createdAt: now,
+          updatedAt: now,
+        }, 'creating tenant');
 
-      // Step 3: Create user document with SUPER_ADMIN role
-      setStep('Setting up SUPER_ADMIN profile...');
-      await setDoc(doc(db, 'users', uid), {
-        tenantId,
-        email: formData.email,
-        username: usernameLower,
-        displayName: formData.displayName,
-        phone: formData.phone || null,
-        role: 'SUPER_ADMIN',
-        teamId: null,
-        assignedDivisionIds: [],
-        active: true,
-        fcmDevices: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        // Step 3: SUPER_ADMIN user document
+        setStep('Setting up SUPER_ADMIN profile...');
+        await writeDoc(`users/${uid}`, {
+          tenantId: null,
+          email: formData.email,
+          username: usernameLower,
+          displayName: formData.displayName,
+          phone: formData.phone || null,
+          role: 'SUPER_ADMIN',
+          teamId: null,
+          assignedDivisionIds: [],
+          active: true,
+          fcmDevices: [],
+          createdAt: now,
+          updatedAt: now,
+        }, 'setting up admin profile');
 
-      // Step 4: Create username index
-      setStep('Creating username index...');
-      await setDoc(doc(db, 'usernameIndex', `${tenantId}__${usernameLower}`), {
-        uid,
-        email: formData.email,
-        tenantId,
-        username: usernameLower,
-        createdAt: serverTimestamp(),
-      });
+        // Step 4: Username index
+        setStep('Creating username index...');
+        await writeDoc(`usernameIndex/global__${usernameLower}`, {
+          uid,
+          email: formData.email,
+          tenantId: null,
+          isGlobalAdmin: true,
+          username: usernameLower,
+          createdAt: now,
+        }, 'creating username index');
 
-      // Step 5: Seed default tenant config
-      setStep('Seeding default configuration...');
-      const configRef = doc(db, 'tenantConfig', tenantId);
-      const configDoc = await getDoc(configRef);
-      if (!configDoc.exists()) {
-        await setDoc(configRef, {
+        // Step 5: Default tenant config
+        setStep('Seeding configuration...');
+        await writeDoc(`tenantConfig/${tenantId}`, {
           tenantId,
           statusOptions: DEFAULT_STATUS_OPTIONS,
           intermediateGroups: DEFAULT_INTERMEDIATE_GROUPS,
           joinedCollegeOptions: DEFAULT_JOINED_COLLEGE_OPTIONS,
-          updatedAt: serverTimestamp(),
-        });
+          updatedAt: now,
+        }, 'seeding configuration');
+
+      } catch (firestoreError: any) {
+        // Roll back the Auth account so the user can retry cleanly.
+        console.warn('[INIT] Firestore write failed; rolling back Auth account...');
+        await userCredential.user.delete().catch((e) =>
+          console.error('[INIT] Could not roll back Auth account:', e)
+        );
+        throw firestoreError;
       }
 
-      // Step 6: Sign out (so they can log in fresh through the proper login page)
+      // Step 6: Sign out so they log in fresh through the login page.
       setStep('Finalizing...');
       await firebaseSignOut(auth);
+      console.log('[INIT] All done!');
 
       setResult({
         success: true,
-        message: 'SUPER_ADMIN account created successfully! You can now sign in with your credentials.',
+        message: 'SUPER_ADMIN account created successfully! Redirecting to sign-in…',
       });
 
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 3000);
+      setTimeout(() => { window.location.href = '/login'; }, 3000);
 
     } catch (error: any) {
       console.error('Init page error:', error);
       let message = 'Failed to create account.';
-
       if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered. Try logging in instead.';
+        message =
+          'This email is already registered. If a previous setup attempt failed, ' +
+          'delete the orphaned account in Firebase Console → Authentication, then retry.';
       } else if (error.code === 'auth/weak-password') {
         message = 'Password is too weak. Use at least 6 characters.';
       } else if (error.code === 'auth/invalid-email') {
@@ -209,7 +268,6 @@ export default function InitPage() {
       } else if (error.message) {
         message = error.message;
       }
-
       setResult({ success: false, message });
     } finally {
       setLoading(false);

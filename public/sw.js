@@ -233,7 +233,7 @@ self.addEventListener('push', function(event) {
 });
 
 
-const CACHE_VERSION = 'samhitha-v3-2.1.0';
+const CACHE_VERSION = 'samhitha-v3-2.1.2';
 const CACHE_NAME = CACHE_VERSION;
 const STATIC_CACHE_NAME = 'samhitha-static-v5';
 const RUNTIME_CACHE_NAME = 'samhitha-runtime-v5';
@@ -255,7 +255,6 @@ const STATIC_ASSETS = [
   '/logoMain.png',
   '/icon-192x192.png',
   '/icon-512x512.png',
-  '/favicon.ico',
   '/manifest.json'
 ];
 
@@ -539,6 +538,16 @@ self.addEventListener('fetch', event => {
 
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // CRITICAL FIX: Skip Firebase/Firestore streaming endpoints!
+  // If the SW tries to intercept and cache a long-polling stream, it buffers forever and hangs the app.
+  if (
+    url.hostname.includes('firestore.googleapis.com') ||
+    url.hostname.includes('firebaseio.com') ||
+    url.hostname.includes('identitytoolkit.googleapis.com')
+  ) {
     return;
   }
 

@@ -1,6 +1,5 @@
 import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
-export declare function verifyAuthToken(context: functions.https.CallableContext): Promise<admin.auth.DecodedIdToken>;
+export declare function verifyAuthToken(context: any): Promise<admin.auth.DecodedIdToken>;
 export declare function requireSuperAdmin(token: admin.auth.DecodedIdToken): void;
 export declare function requireAdminOrManager(token: admin.auth.DecodedIdToken): void;
 export declare function requirePROOrAbove(token: admin.auth.DecodedIdToken): void;

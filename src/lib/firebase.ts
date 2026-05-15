@@ -1,9 +1,7 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
   initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
   connectFirestoreEmulator,
 } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
@@ -21,112 +19,48 @@ export const firebaseConfig = {
 
 import { logger } from '@/lib/logger';
 
-// Initialize Firebase with error handling
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-  logger.success('Firebase initialized successfully');
-} catch (error: any) {
-  logger.error('Firebase initialization error', error);
-  // If app already exists, use the existing one
-  if (error?.code === 'app/duplicate-app') {
-    app = initializeApp(firebaseConfig, 'secondary');
-  } else {
-    throw error;
-  }
-}
+// Initialize Firebase — reuse the existing default app during HMR/module reloads
+// instead of creating a broken 'secondary' named app.
+const app = getApps().length === 0
+  ? initializeApp(firebaseConfig)
+  : getApp();
+
+logger.success('Firebase app ready');
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 
-// Initialize Cloud Firestore with IndexedDB persistence for offline support
-export const db = typeof window !== 'undefined'
-  ? (() => {
-      try {
-        return initializeFirestore(app, {
-          localCache: persistentLocalCache({
-            tabManager: persistentMultipleTabManager(),
-          }),
-        });
-      } catch {
-        // HMR or duplicate-init: fall back to existing instance
-        return getFirestore(app);
-      }
-    })()
-  : getFirestore(app);
+// Initialize Cloud Firestore.
+// experimentalForceLongPolling forces the SDK to use plain HTTP long-polling
+// instead of the default WebChannel/streaming transport. WebChannel is blocked
+// by many corporate networks, ISPs, browser extensions, and some localhost
+// setups — producing the exact symptom of "reads/writes hang while Auth (REST)
+// works fine". Long-polling is the Firebase team's documented fix.
+// useFetchStreams: false avoids fetch-stream APIs that some proxies break.
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      useFetchStreams: false,
+    } as any);
+  } catch {
+    // Already initialized (e.g. HMR) — return the existing instance.
+    return getFirestore(app);
+  }
+})();
 
 // Initialize Firebase Storage and get a reference to the service
 export const storage = getStorage(app);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Firestore SDK Internal-Assertion Recovery
-// ─────────────────────────────────────────────────────────────────────────────
-// The Firestore JS SDK occasionally throws non-recoverable internal assertions
-// (e.g. "INTERNAL ASSERTION FAILED: Unexpected state (ID: ca9/b815)") when its
-// persistent IndexedDB cache gets out of sync with server-side index state — most
-// commonly right after new indexes are deployed. The watch stream cannot recover
-// once this happens; the only fix is to clear the cache and reload.
-//
-// We listen for these specific errors and auto-recover by clearing the
-// Firestore IndexedDB databases and reloading the page (once per session).
-if (typeof window !== 'undefined') {
-  const RECOVERY_FLAG = '__firestore_recovery_attempted';
-  const isFirestoreInternalAssertion = (msg?: string) =>
-    !!msg && msg.includes('FIRESTORE') && msg.includes('INTERNAL ASSERTION FAILED');
 
-  const recoverFromCacheCorruption = async () => {
-    if (sessionStorage.getItem(RECOVERY_FLAG)) {
-      // Already tried this session — don't infinite-loop reload.
-      return;
-    }
-    sessionStorage.setItem(RECOVERY_FLAG, '1');
-    try {
-      logger.warn('⚠️ Firestore SDK internal assertion detected — clearing cache and reloading');
-      // Best-effort: delete Firestore IndexedDB databases.
-      if ('indexedDB' in window && (indexedDB as any).databases) {
-        const dbs = await (indexedDB as any).databases();
-        await Promise.all(
-          (dbs || [])
-            .filter((d: any) => d?.name && d.name.startsWith('firestore/'))
-            .map((d: any) => new Promise<void>((resolve) => {
-              const req = indexedDB.deleteDatabase(d.name);
-              req.onsuccess = req.onerror = req.onblocked = () => resolve();
-            }))
-        );
-      }
-    } catch (e) {
-      console.warn('Cache cleanup failed (continuing):', e);
-    }
-    window.location.reload();
-  };
-
-  window.addEventListener('error', (event) => {
-    if (isFirestoreInternalAssertion(event.message) || isFirestoreInternalAssertion(event.error?.message)) {
-      void recoverFromCacheCorruption();
-    }
-  });
-  window.addEventListener('unhandledrejection', (event) => {
-    const msg = event.reason?.message || String(event.reason || '');
-    if (isFirestoreInternalAssertion(msg)) {
-      void recoverFromCacheCorruption();
-    }
-  });
-}
 
 // Connect to Emulators in Development (Client-side only)
-if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  try {
-    console.log('🔧 Connecting to Firebase Emulators...');
-    // We wrap EACH connection independently so one failure doesn't block others
-    // try { connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); } catch (e) { console.debug('Auth emulator already connected/failed'); }
-    // try { connectFirestoreEmulator(db, '127.0.0.1', 8080); } catch (e: any) { console.debug('Firestore emulator connection issue:', e.message); }
-    // try { connectStorageEmulator(storage, '127.0.0.1', 9199); } catch (e) { console.debug('Storage emulator already connected/failed'); }
-
-    console.log('✅ Emulator connection attempts finished');
-  } catch (e) {
-    console.warn('⚠️ Unexpected error connecting to emulators:', e);
-  }
-}
+// Note: Emulator connections are disabled — uncomment the relevant lines to enable
+// if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+//   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+//   connectFirestoreEmulator(db, '127.0.0.1', 8080);
+//   connectStorageEmulator(storage, '127.0.0.1', 9199);
+// }
 
 // Collection names
 export const COLLECTIONS = {

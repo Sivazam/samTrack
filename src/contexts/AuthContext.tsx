@@ -28,7 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserDoc = useCallback(async (uid: string): Promise<AuthUser | null> => {
     try {
       const userRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userRef);
+      
+      // Safety timeout: don't hang forever if network drops
+      const userDoc = await Promise.race([
+        getDoc(userRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout fetching user profile')), 15000))
+      ]);
 
       if (userDoc.exists()) {
         const data = userDoc.data();
@@ -56,7 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchTenantInfo = useCallback(async (tenantId: string): Promise<{ name?: string; status?: string; branding?: any }> => {
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
-      const tenantDoc = await getDoc(tenantRef);
+      
+      const tenantDoc = await Promise.race([
+        getDoc(tenantRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout fetching tenant info')), 15000))
+      ]);
+      
       if (tenantDoc.exists()) {
         const data = tenantDoc.data();
         return {
@@ -97,6 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const shouldSync = !lastSync || Date.now() - parseInt(lastSync) > 60 * 60 * 1000; // 1 hour
       if (shouldSync) {
         await syncClaimsViaCloudFunction();
+        // Force-refresh the ID token so the new custom claims (role, tenantId)
+        // are immediately available to Firestore security rules.  Without this
+        // the token keeps stale claims until the next automatic 1-hour refresh.
+        await firebaseUser.getIdToken(true);
         localStorage.setItem('__claims_last_sync', Date.now().toString());
       }
     } catch (e) {

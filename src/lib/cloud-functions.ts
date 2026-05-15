@@ -31,6 +31,8 @@ const CRITICAL_ACTIONS = new Set([
   'updateTenantConfig', 'generateReport', 'getDashboardStats',
   // Super Admin
   'adminCreateTenant', 'adminUpdateTenant',
+  // Claims sync
+  'syncClaims',
 ]);
 
 // Notification functions → bundled into notificationApi (Gen2)

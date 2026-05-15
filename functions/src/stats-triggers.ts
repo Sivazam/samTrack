@@ -5,9 +5,9 @@ import { isAlreadyProcessed, buildLeadAssignmentSearchFields } from './utils';
 const db = admin.firestore();
 
 // ─── onLeadCreated ────────────────────────────────────────────────────
-export const onLeadCreated = functions.firestore
+export const onLeadCreated = (functions as any).firestore
   .document('leads/{leadId}')
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const lead = snap.data();
     const tenantId = lead.tenantId;
     const leadId = snap.id;
@@ -43,9 +43,9 @@ export const onLeadCreated = functions.firestore
   });
 
 // ─── onLeadUpdated ────────────────────────────────────────────────────
-export const onLeadUpdated = functions.firestore
+export const onLeadUpdated = (functions as any).firestore
   .document('leads/{leadId}')
-  .onUpdate(async (change, context) => {
+  .onUpdate(async (change: any, context: any) => {
     const eventId = `leadUpdate_${context.params.leadId}_${change.after.updateTime?.seconds || Date.now()}`;
     if (await isAlreadyProcessed(db, eventId)) return;
 
@@ -88,9 +88,9 @@ export const onLeadUpdated = functions.firestore
   });
 
 // ─── onLeadDeleted ────────────────────────────────────────────────────
-export const onLeadDeleted = functions.firestore
+export const onLeadDeleted = (functions as any).firestore
   .document('leads/{leadId}')
-  .onDelete(async (snap, context) => {
+  .onDelete(async (snap: any, context: any) => {
     const lead = snap.data();
     const tenantId = lead.tenantId;
     const leadId = context.params.leadId;
@@ -108,9 +108,9 @@ export const onLeadDeleted = functions.firestore
   });
 
 // ─── onStatusUpdateCreated ────────────────────────────────────────────
-export const onStatusUpdateCreated = functions.firestore
+export const onStatusUpdateCreated = (functions as any).firestore
   .document('leads/{leadId}/statusUpdates/{updateId}')
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const eventId = `statusUpdate_${context.params.leadId}_${context.params.updateId}`;
     if (await isAlreadyProcessed(db, eventId)) return;
 
@@ -122,7 +122,6 @@ export const onStatusUpdateCreated = functions.firestore
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
     const dailyStatsId = `${tenantId}__${today}`;
     const dailyRef = db.collection('tenant_daily_stats').doc(dailyStatsId);
-    const updatesCount = admin.firestore.FieldValue.increment(1);
     const byApproach: Record<string, any> = {};
     byApproach[`byApproachType.${data.approachType}`] = admin.firestore.FieldValue.increment(1);
     const byPRO: Record<string, any> = {};
@@ -134,7 +133,7 @@ export const onStatusUpdateCreated = functions.firestore
     await dailyRef.set({
       tenantId,
       date: today,
-      updatesCount,
+      updatesCount: admin.firestore.FieldValue.increment(1),
       byApproachType: { PHONE: 0, DOORSTEP: 0, WALK_IN: 0, ONLINE: 0 },
       byPROUid: {},
       byTeamId: {},
@@ -144,9 +143,6 @@ export const onStatusUpdateCreated = functions.firestore
       ...byApproach,
       ...byPRO,
     }, { merge: true });
-
-    // Increment updatesCount properly
-    await dailyRef.update({ updatesCount: admin.firestore.FieldValue.increment(1) });
 
     // Trigger push notification (call notification handler logic)
     try {
@@ -170,9 +166,9 @@ export const onStatusUpdateCreated = functions.firestore
   });
 
 // ─── onTeamUpdated ────────────────────────────────────────────────────
-export const onTeamUpdated = functions.firestore
+export const onTeamUpdated = (functions as any).firestore
   .document('teams/{teamId}')
-  .onUpdate(async (change, context) => {
+  .onUpdate(async (change: any, context: any) => {
     const eventId = `teamUpdate_${context.params.teamId}_${change.after.updateTime?.seconds || Date.now()}`;
     if (await isAlreadyProcessed(db, eventId)) return;
 
@@ -235,9 +231,9 @@ export const onTeamUpdated = functions.firestore
   });
 
 // ─── onTeamDeleted ────────────────────────────────────────────────────
-export const onTeamDeleted = functions.firestore
+export const onTeamDeleted = (functions as any).firestore
   .document('teams/{teamId}')
-  .onDelete(async (snap, context) => {
+  .onDelete(async (snap: any, context: any) => {
     const teamData = snap.data();
     const tenantId = teamData.tenantId;
     const teamId = context.params.teamId;
@@ -255,9 +251,9 @@ export const onTeamDeleted = functions.firestore
   });
 
 // ─── onReminderCreated ────────────────────────────────────────────────
-export const onReminderCreated = functions.firestore
+export const onReminderCreated = (functions as any).firestore
   .document('reminders/{reminderId}')
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const data = snap.data();
     const tenantId = data.tenantId;
     const leadId = data.leadId;
@@ -290,9 +286,9 @@ export const onReminderCreated = functions.firestore
   });
 
 // ─── onReminderStatusChanged ──────────────────────────────────────────
-export const onReminderStatusChanged = functions.firestore
+export const onReminderStatusChanged = (functions as any).firestore
   .document('reminders/{reminderId}')
-  .onUpdate(async (change, context) => {
+  .onUpdate(async (change: any, context: any) => {
     const before = change.before.data();
     const after = change.after.data();
     const tenantId = after.tenantId;
@@ -351,9 +347,9 @@ export const onReminderStatusChanged = functions.firestore
   });
 
 // ─── onUserUpdated ────────────────────────────────────────────────────
-export const onUserUpdated = functions.firestore
+export const onUserUpdated = (functions as any).firestore
   .document('users/{uid}')
-  .onUpdate(async (change, context) => {
+  .onUpdate(async (change: any, context: any) => {
     const before = change.before.data();
     const after = change.after.data();
     const uid = context.params.uid;

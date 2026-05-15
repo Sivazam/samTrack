@@ -125,7 +125,6 @@ exports.onStatusUpdateCreated = functions.firestore
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
     const dailyStatsId = `${tenantId}__${today}`;
     const dailyRef = db.collection('tenant_daily_stats').doc(dailyStatsId);
-    const updatesCount = admin.firestore.FieldValue.increment(1);
     const byApproach = {};
     byApproach[`byApproachType.${data.approachType}`] = admin.firestore.FieldValue.increment(1);
     const byPRO = {};
@@ -133,9 +132,7 @@ exports.onStatusUpdateCreated = functions.firestore
     if (data.teamId) {
         byPRO[`byTeamId.${data.teamId}`] = admin.firestore.FieldValue.increment(1);
     }
-    await dailyRef.set(Object.assign(Object.assign({ tenantId, date: today, updatesCount, byApproachType: { PHONE: 0, DOORSTEP: 0, WALK_IN: 0, ONLINE: 0 }, byPROUid: {}, byTeamId: {}, remindersFired: 0, remindersCompleted: 0, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, byApproach), byPRO), { merge: true });
-    // Increment updatesCount properly
-    await dailyRef.update({ updatesCount: admin.firestore.FieldValue.increment(1) });
+    await dailyRef.set(Object.assign(Object.assign({ tenantId, date: today, updatesCount: admin.firestore.FieldValue.increment(1), byApproachType: { PHONE: 0, DOORSTEP: 0, WALK_IN: 0, ONLINE: 0 }, byPROUid: {}, byTeamId: {}, remindersFired: 0, remindersCompleted: 0, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, byApproach), byPRO), { merge: true });
     // Trigger push notification (call notification handler logic)
     try {
         const leadDoc = await db.collection('leads').doc(leadId).get();

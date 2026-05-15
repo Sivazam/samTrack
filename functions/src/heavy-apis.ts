@@ -124,6 +124,7 @@ export async function createUserHandler(payload: any, request: CallableRequest) 
         uid,
         email,
         tenantId,
+        username: usernameLower,
         createdAt: now,
       });
 
@@ -171,7 +172,13 @@ export async function updateUserHandler(payload: any, request: CallableRequest) 
       // Delete old index + create new
       const oldIndexId = `${userData.tenantId}__${userData.username}`;
       tx.delete(db.collection('usernameIndex').doc(oldIndexId));
-      tx.set(newIndexRef, { uid: userId, email: userData.email, tenantId: userData.tenantId, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+      tx.set(newIndexRef, {
+        uid: userId,
+        email: userData.email,
+        tenantId: userData.tenantId,
+        username: username.toLowerCase(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       updates.username = username.toLowerCase();
     }
 
@@ -1215,6 +1222,34 @@ export async function adminCreateTenantHandler(payload: any, request: CallableRe
 
     await db.collection('usernameIndex').doc(`${tenantId}__${username}`).set({
       uid, email: adminEmail, tenantId, createdAt: now,
+    });
+
+    // Create default tenantConfig for the new college
+    const defaultStatusOptions = [
+      { code: 'NEW', label: 'New', color: '#6366f1', isTerminal: false, order: 1, active: true },
+      { code: 'CONTACTED', label: 'Contacted', color: '#8b5cf6', isTerminal: false, order: 2, active: true },
+      { code: 'VISITED', label: 'Visited', color: '#a855f7', isTerminal: false, order: 3, active: true },
+      { code: 'APPLIED', label: 'Applied', color: '#d946ef', isTerminal: false, order: 4, active: true },
+      { code: 'ADMITTED', label: 'Admitted', color: '#10b981', isTerminal: false, order: 5, active: true },
+      { code: 'ENROLLED', label: 'Enrolled', color: '#14b8a6', isTerminal: true, order: 6, active: true },
+    ];
+    const defaultIntermediateGroups = [
+      { code: 'MPC', label: 'MPC', order: 1, active: true },
+      { code: 'BIPC', label: 'BiPC', order: 2, active: true },
+      { code: 'CEC', label: 'CEC', order: 3, active: true },
+      { code: 'MEC', label: 'MEC', order: 4, active: true },
+    ];
+    const defaultJoinedCollegeOptions = [
+      { code: 'SELF', label: 'Self College', order: 1, active: true },
+      { code: 'OTHERS', label: 'Others', order: 2, active: true },
+    ];
+
+    await db.collection('tenantConfig').doc(tenantId).set({
+      tenantId,
+      statusOptions: defaultStatusOptions,
+      intermediateGroups: defaultIntermediateGroups,
+      joinedCollegeOptions: defaultJoinedCollegeOptions,
+      updatedAt: now,
     });
 
     return { success: true, tenantId, adminUid: uid };

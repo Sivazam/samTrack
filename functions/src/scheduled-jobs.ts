@@ -34,11 +34,11 @@ async function sendFCMToUids(uids: string[], title: string, body: string, data: 
 }
 
 // Process time-specific reminders every 5 minutes
-export const processReminders = functions
+export const processReminders = (functions as any)
   .region('asia-south1')
   .pubsub.schedule('every 5 minutes')
   .timeZone('Asia/Kolkata')
-  .onRun(async (context) => {
+  .onRun(async (context: any) => {
     const now = admin.firestore.Timestamp.now();
     const snapshot = await db.collection('reminders')
       .where('status', '==', 'PENDING')
@@ -64,11 +64,11 @@ export const processReminders = functions
   });
 
 // Process date-only reminders daily at 9 AM IST
-export const processDailyReminders = functions
+export const processDailyReminders = (functions as any)
   .region('asia-south1')
   .pubsub.schedule('0 9 * * *')
   .timeZone('Asia/Kolkata')
-  .onRun(async (context) => {
+  .onRun(async (context: any) => {
     const now = admin.firestore.Timestamp.now();
     const snapshot = await db.collection('reminders')
       .where('status', '==', 'PENDING')
@@ -94,11 +94,11 @@ export const processDailyReminders = functions
   });
 
 // Cleanup stale reminders daily at 2 AM IST
-export const cleanupStaleReminders = functions
+export const cleanupStaleReminders = (functions as any)
   .region('asia-south1')
   .pubsub.schedule('0 2 * * *')
   .timeZone('Asia/Kolkata')
-  .onRun(async (context) => {
+  .onRun(async (context: any) => {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     const cutoff = admin.firestore.Timestamp.fromDate(ninetyDaysAgo);
 
