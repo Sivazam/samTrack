@@ -1297,6 +1297,10 @@ async function manageReminderHandler(payload, request) {
             snoozeDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
             snoozeDate.setHours(10, 0, 0, 0);
         }
+        else if (snoozeDuration === '3d') {
+            snoozeDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            snoozeDate.setHours(10, 0, 0, 0);
+        }
         else {
             snoozeDate = new Date(dueAt || Date.now() + 60 * 60 * 1000);
         }

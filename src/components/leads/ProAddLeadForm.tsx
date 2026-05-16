@@ -42,7 +42,7 @@ export function ProAddLeadForm({ onClose }: ProAddLeadFormProps) {
     divisionId: '',
   });
 
-  // Load divisions (restricted to user's assigned divisions if any)
+  // Load ALL divisions — referral leads can be in any area, not just assigned ones
   useEffect(() => {
     if (!user?.tenantId) return;
     const q = query(
@@ -52,12 +52,7 @@ export function ProAddLeadForm({ onClose }: ProAddLeadFormProps) {
     );
     const unsub: Unsubscribe = onSnapshot(q,
       snap => {
-        let divs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Division));
-        // Filter to assigned divisions if the PRO has them
-        const assignedIds: string[] = (user as any).assignedDivisionIds || [];
-        if (assignedIds.length > 0) {
-          divs = divs.filter(d => assignedIds.includes(d.id));
-        }
+        const divs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Division));
         setDivisions(divs.sort((a, b) => a.name.localeCompare(b.name)));
       },
       err => {
@@ -66,7 +61,7 @@ export function ProAddLeadForm({ onClose }: ProAddLeadFormProps) {
       }
     );
     return () => unsub();
-  }, [user?.tenantId, (user as any)?.assignedDivisionIds]);
+  }, [user?.tenantId]);
 
   // Load tenant config (for intermediate groups)
   useEffect(() => {

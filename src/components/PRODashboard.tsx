@@ -17,7 +17,7 @@ import {
   DoorOpen, Wifi, Footprints, Globe, UserCheck, GraduationCap,
   ChevronRight, Mail, Building2, AlertCircle, TrendingUp,
   BarChart3, Home, AlertTriangle, BookOpen, Layers, ClipboardList, Check,
-  Plus, Tag
+  Plus, Tag, AlarmClock, X
 } from 'lucide-react';
 import { LeadAssignment, Reminder, ApproachType } from '@/types';
 import { format } from 'date-fns';
@@ -146,6 +146,8 @@ export default function PRODashboard() {
   const [referralFilter, setReferralFilter] = useState(false);
   const [showAddLeadForm, setShowAddLeadForm] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [snoozeMenuId, setSnoozeMenuId] = useState<string | null>(null);
+  const [reminderActionLoading, setReminderActionLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -987,49 +989,130 @@ export default function PRODashboard() {
                 </div>
               ) : (
                 <motion.div variants={container} initial="hidden" animate="show" className="px-3 py-2 space-y-2">
-                  {reminders.map((reminder) => (
-                    <motion.div key={reminder.id} variants={item}>
-                      <div
-                        className="rounded-xl bg-white p-3 shadow-sm border border-amber-100 cursor-pointer hover:shadow-md transition-all"
-                        onClick={() => setSelectedLeadId(reminder.leadId)}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
-                            <Bell className="h-4 w-4 text-amber-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{reminder.leadDisplayName}</p>
-                            <p className="text-[10px] text-slate-400">Lead #{reminder.uniqueLeadId}</p>
-                            {reminder.note && (
-                              <p className="text-xs text-slate-500 mt-0.5 truncate">{reminder.note}</p>
-                            )}
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                              <Clock className="h-3 w-3 text-amber-400" />
-                              <span className="text-[10px] text-amber-600 font-medium">
-                                {formatDate(reminder.dueAt)}
-                              </span>
-                              <Badge variant="outline" className="text-[9px] px-1.5 border-amber-200 text-amber-700 ml-1">
-                                {reminder.status}
-                              </Badge>
+                  {reminders.map((reminder) => {
+                    const isOverdueReminder = isOverdue(reminder.dueAt);
+                    const isBusy = reminderActionLoading === reminder.id;
+                    const showSnooze = snoozeMenuId === reminder.id;
+
+                    const doAction = async (subAction: 'complete' | 'cancel' | 'snooze', snoozeDuration?: string) => {
+                      setReminderActionLoading(reminder.id);
+                      setSnoozeMenuId(null);
+                      try {
+                        await manageReminderViaCloudFunction({ subAction, reminderId: reminder.id, snoozeDuration });
+                      } catch (err) {
+                        console.error('Reminder action failed:', err);
+                      } finally {
+                        setReminderActionLoading(null);
+                      }
+                    };
+
+                    return (
+                      <motion.div key={reminder.id} variants={item} layout>
+                        <div
+                          className={cn(
+                            "rounded-xl bg-white shadow-sm border transition-all",
+                            isOverdueReminder ? "border-red-200 bg-red-50/30" : "border-amber-100"
+                          )}
+                        >
+                          {/* Main row — tap to open lead */}
+                          <div
+                            className="flex items-start gap-2.5 p-3 cursor-pointer"
+                            onClick={() => { setSnoozeMenuId(null); setSelectedLeadId(reminder.leadId); }}
+                          >
+                            <div className={cn(
+                              "h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                              isOverdueReminder ? "bg-red-100" : "bg-amber-50"
+                            )}>
+                              <Bell className={cn("h-4 w-4", isOverdueReminder ? "text-red-500" : "text-amber-500")} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{reminder.leadDisplayName}</p>
+                              <p className="text-[10px] text-slate-400">Lead #{reminder.uniqueLeadId}</p>
+                              {reminder.note && (
+                                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{reminder.note}</p>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <Clock className={cn("h-3 w-3", isOverdueReminder ? "text-red-400" : "text-amber-400")} />
+                                <span className={cn("text-[10px] font-medium", isOverdueReminder ? "text-red-600" : "text-amber-600")}>
+                                  {formatDate(reminder.dueAt)}
+                                </span>
+                                {isOverdueReminder && (
+                                  <Badge className="text-[9px] bg-red-100 text-red-700 border-0 font-bold px-1.5 py-0">OVERDUE</Badge>
+                                )}
+                                <Badge variant="outline" className="text-[9px] px-1.5 border-amber-200 text-amber-700">
+                                  {reminder.status}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try { await manageReminderViaCloudFunction({ subAction: 'complete', reminderId: reminder.id }); }
-                              catch (err) { console.error('Complete reminder failed:', err); }
-                            }}
-                            className="h-8 w-8 flex items-center justify-center rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 shrink-0"
-                            title="Mark Done"
-                          >
-                            <Check className="h-4 w-4" />
-                          </motion.button>
+
+                          {/* Action row */}
+                          <div className="flex items-center border-t border-slate-100 divide-x divide-slate-100">
+                            {/* Done */}
+                            <button
+                              disabled={isBusy}
+                              onClick={() => doAction('complete')}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 transition-colors disabled:opacity-40"
+                            >
+                              {isBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                              Done
+                            </button>
+                            {/* Snooze */}
+                            <button
+                              disabled={isBusy}
+                              onClick={(e) => { e.stopPropagation(); setSnoozeMenuId(showSnooze ? null : reminder.id); }}
+                              className={cn(
+                                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors disabled:opacity-40",
+                                showSnooze
+                                  ? "bg-amber-50 text-amber-700"
+                                  : "text-amber-600 hover:bg-amber-50 active:bg-amber-100"
+                              )}
+                            >
+                              <AlarmClock className="h-3.5 w-3.5" />
+                              Snooze
+                            </button>
+                            {/* Dismiss */}
+                            <button
+                              disabled={isBusy}
+                              onClick={() => doAction('cancel')}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium text-slate-400 hover:bg-slate-50 hover:text-red-500 active:bg-red-50 transition-colors disabled:opacity-40"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Dismiss
+                            </button>
+                          </div>
+
+                          {/* Snooze options — inline dropdown */}
+                          <AnimatePresence>
+                            {showSnooze && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden border-t border-amber-100 bg-amber-50/60"
+                              >
+                                <div className="flex items-center divide-x divide-amber-100">
+                                  {[
+                                    { label: '1 hour', value: '1h' },
+                                    { label: 'Tomorrow', value: 'tomorrow' },
+                                    { label: '3 days', value: '3d' },
+                                  ].map(opt => (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => doAction('snooze', opt.value)}
+                                      className="flex-1 py-2.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 active:bg-amber-200 transition-colors"
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </motion.div>
               )}
             </motion.div>
