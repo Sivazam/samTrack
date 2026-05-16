@@ -16,13 +16,15 @@ import {
   Calendar, User, Activity, LogOut, RefreshCw,
   DoorOpen, Wifi, Footprints, Globe, UserCheck, GraduationCap,
   ChevronRight, Mail, Building2, AlertCircle, TrendingUp,
-  BarChart3, Home, AlertTriangle, BookOpen, Layers, ClipboardList, Check
+  BarChart3, Home, AlertTriangle, BookOpen, Layers, ClipboardList, Check,
+  Plus, Tag
 } from 'lucide-react';
 import { LeadAssignment, Reminder, ApproachType } from '@/types';
 import { format } from 'date-fns';
 import { LeadDetailView } from '@/components/leads/LeadDetailView';
 import { LogoutConfirmDialog } from '@/components/ui/LogoutConfirmDialog';
 import { updateUserViaCloudFunction, manageReminderViaCloudFunction } from '@/lib/cloud-functions';
+import { ProAddLeadForm } from '@/components/leads/ProAddLeadForm';
 import * as XLSX from 'xlsx';
 
 // ─── Approach Type Config ────────────────────────────────────────────────────
@@ -141,6 +143,8 @@ export default function PRODashboard() {
   const [recentUpdates, setRecentUpdates] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState('');
+  const [referralFilter, setReferralFilter] = useState(false);
+  const [showAddLeadForm, setShowAddLeadForm] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -271,6 +275,11 @@ export default function PRODashboard() {
   const filteredLeads = useMemo(() => {
     let result = leads;
     
+    // Filter referral leads only
+    if (referralFilter) {
+      result = result.filter(lead => (lead as any).isReferral === true);
+    }
+    
     // Filter by Division/Area if areaFilter is set
     if (areaFilter) {
       result = result.filter(lead => lead.divisionId === areaFilter || lead.divisionName?.toLowerCase() === areaFilter.toLowerCase());
@@ -286,7 +295,16 @@ export default function PRODashboard() {
     }
 
     return result;
-  }, [leads, searchQuery, areaFilter]);
+  }, [leads, searchQuery, areaFilter, referralFilter]);
+
+  // Overall lead summary stats (across all leads, not filtered)
+  const leadStats = useMemo(() => {
+    const total = leads.length;
+    const visited = leads.filter(l => l.lastStatusCode && l.lastStatusCode !== 'NEW').length;
+    const remaining = total - visited;
+    const referralCount = leads.filter(l => (l as any).isReferral === true).length;
+    return { total, visited, remaining, referralCount };
+  }, [leads]);
 
   // Derived unique areas assigned to the PRO (for the filter dropdown)
   const assignedAreas = useMemo(() => {
@@ -448,6 +466,11 @@ export default function PRODashboard() {
         }}
       />
 
+      {/* Add Referral Lead Form */}
+      {showAddLeadForm && (
+        <ProAddLeadForm onClose={() => setShowAddLeadForm(false)} />
+      )}
+
       {/* Profile Edit Dialog */}
       {editProfileOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
@@ -602,6 +625,24 @@ export default function PRODashboard() {
               transition={{ duration: 0.15 }}
               className="min-h-full"
             >
+{/* ── Summary Cards ─────────────────────────────────────────── */}
+              {!loading && (
+                <div className="px-3 pt-3 pb-1 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 p-3 flex flex-col items-center shadow-sm">
+                    <span className="text-[22px] font-extrabold text-white leading-none">{leadStats.total}</span>
+                    <span className="text-[10px] text-emerald-100 font-medium mt-0.5">Total Leads</span>
+                  </div>
+                  <div className="rounded-xl bg-gradient-to-br from-sky-500 to-blue-500 p-3 flex flex-col items-center shadow-sm">
+                    <span className="text-[22px] font-extrabold text-white leading-none">{leadStats.visited}</span>
+                    <span className="text-[10px] text-sky-100 font-medium mt-0.5">Visited</span>
+                  </div>
+                  <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 p-3 flex flex-col items-center shadow-sm">
+                    <span className="text-[22px] font-extrabold text-white leading-none">{leadStats.remaining}</span>
+                    <span className="text-[10px] text-amber-100 font-medium mt-0.5">Remaining</span>
+                  </div>
+                </div>
+              )}
+
 {/* ── Search & Filter Bar ────────────────────────────────────────── */}
                 <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-slate-100 flex flex-col gap-2 px-3 py-2.5 z-10">
                   <div className="flex gap-2">
@@ -634,21 +675,40 @@ export default function PRODashboard() {
                         ))}
                       </select>
                     )}
+                    {/* Add Lead button */}
+                    <Button
+                      size="sm"
+                      className="h-9 px-3 bg-purple-600 hover:bg-purple-700 text-white shrink-0"
+                      onClick={() => setShowAddLeadForm(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
-                  {/* Search result count */}
+                  {/* Referral filter chip + result count */}
                   <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setReferralFilter(f => !f)}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors",
+                          referralFilter
+                            ? "bg-purple-100 text-purple-700 border-purple-300"
+                            : "bg-slate-50 text-slate-500 border-slate-200"
+                        )}
+                      >
+                        <Tag className="h-2.5 w-2.5" />
+                        Referral {leadStats.referralCount > 0 && `(${leadStats.referralCount})`}
+                      </button>
+                    </div>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {(searchQuery || areaFilter) ? (
+                      {(searchQuery || areaFilter || referralFilter) ? (
                         <>{filteredLeads.length} of {leads.length} leads</>
                       ) : (
                         <>{leads.length} lead{leads.length !== 1 ? 's' : ''}</>
                       )}
                     </span>
-                    {(searchQuery || areaFilter) && filteredLeads.length === 0 && (
-                    <span className="text-[10px] text-red-400 font-medium">No matches</span>
-                  )}
+                  </div>
                 </div>
-              </div>
 
               {/* ── Status Funnel Bar ─────────────────────────────────── */}
               {!loading && leads.length > 0 && statusFunnel.length > 0 && (
@@ -768,6 +828,11 @@ export default function PRODashboard() {
                             
                             <div className="flex flex-col items-end gap-1.5 shrink-0 mt-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                {(lead as any).isReferral && (
+                                  <Badge className="text-[9px] bg-purple-100 text-purple-700 border-0 font-bold px-1.5 py-0">
+                                    REFERRAL
+                                  </Badge>
+                                )}
                                 {lead.lastApproachType && (
                                   <Badge className={cn(
                                     "text-[9px] border font-medium px-1.5 py-0",
@@ -917,7 +982,7 @@ export default function PRODashboard() {
                       <Bell className="h-10 w-10 text-amber-200" />
                     </div>
                   </motion.div>
-                  <p className="text-sm font-semibold text-slate-500">No reminders due today</p>
+                  <p className="text-sm font-semibold text-slate-500">No pending reminders</p>
                   <p className="text-xs mt-1 text-slate-400">Set a reminder from any lead's detail view</p>
                 </div>
               ) : (

@@ -26,6 +26,7 @@ const HANDLERS = {
     manageTeam: heavy_apis_1.manageTeamHandler,
     // ── Lead Management ──
     createLead: heavy_apis_1.createLeadHandler,
+    createReferralLead: heavy_apis_1.createReferralLeadHandler,
     bulkCreateLeads: heavy_apis_1.bulkCreateLeadsHandler,
     updateLead: heavy_apis_1.updateLeadHandler,
     reassignLeadTeam: heavy_apis_1.reassignLeadTeamHandler,

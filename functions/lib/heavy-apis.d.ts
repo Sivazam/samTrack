@@ -27,6 +27,10 @@ export declare function createLeadHandler(payload: any, request: CallableRequest
     success: boolean;
     leadId: string;
 }>;
+export declare function createReferralLeadHandler(payload: any, request: CallableRequest): Promise<{
+    success: boolean;
+    leadId: string;
+}>;
 export declare function bulkCreateLeadsHandler(payload: any, request: CallableRequest): Promise<{
     success: boolean;
     batchId: string;

@@ -141,12 +141,19 @@ export function EditLeadForm({ lead, onClose }: EditLeadFormProps) {
           </div>
           <div>
             <Label className="text-xs">Area *</Label>
-            <Select value={form.divisionId} onValueChange={v => setForm(f => ({ ...f, divisionId: v }))}>
+            <Select
+              value={form.divisionId}
+              onValueChange={v => setForm(f => ({ ...f, divisionId: v }))}
+              disabled={user?.role === 'PRO'}
+            >
               <SelectTrigger><SelectValue placeholder="Select area..." /></SelectTrigger>
               <SelectContent>
                 {divisions.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({d.code})</SelectItem>)}
               </SelectContent>
             </Select>
+            {user?.role === 'PRO' && (
+              <p className="text-[10px] text-slate-400 mt-1">Area cannot be changed by PROs</p>
+            )}
           </div>
         </div>
         <DialogFooter>

@@ -18,6 +18,7 @@ import {
     deactivateUserHandler,
     manageTeamHandler,
     createLeadHandler,
+    createReferralLeadHandler,
     bulkCreateLeadsHandler,
     updateLeadHandler,
     reassignLeadTeamHandler,
@@ -45,6 +46,7 @@ const HANDLERS: Record<string, (data: any, context: any) => Promise<any>> = {
     manageTeam: manageTeamHandler,
     // ── Lead Management ──
     createLead: createLeadHandler,
+    createReferralLead: createReferralLeadHandler,
     bulkCreateLeads: bulkCreateLeadsHandler,
     updateLead: updateLeadHandler,
     reassignLeadTeam: reassignLeadTeamHandler,

@@ -115,6 +115,8 @@ export interface Lead extends BaseDocument {
 
   joinedCollegeName?: string;
 
+  isReferral?: boolean;  // PRO-created referral lead
+
   active: boolean;  // soft-delete flag
 }
 
@@ -167,6 +169,7 @@ export interface LeadAssignment extends BaseDocument {
   lastApproachType?: string;
   joinedCollegeName?: string;
   nextFollowupAt?: Timestamp;
+  isReferral?: boolean;
   active: boolean;
 }
 

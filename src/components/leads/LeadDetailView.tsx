@@ -326,7 +326,7 @@ export function LeadDetailView({ leadId, onClose }: LeadDetailViewProps) {
                   <BellRing className="h-4 w-4 mr-2" /> Set Reminder
                 </Button>
               </div>
-              {user && (user.role === 'COLLEGE_ADMIN' || user.role === 'MANAGER') && (
+              {user && (user.role === 'COLLEGE_ADMIN' || user.role === 'MANAGER' || user.role === 'PRO') && (
                 <Button
                   variant="outline"
                   className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 h-9 text-sm"

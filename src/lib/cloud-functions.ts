@@ -145,6 +145,19 @@ export async function createLeadViaCloudFunction(data: {
   return callCloudFunction('createLead', data);
 }
 
+export async function createReferralLeadViaCloudFunction(data: {
+  uniqueLeadId: number;
+  parentName: string;
+  studentName: string;
+  parentPhone?: string;
+  studentPhone?: string;
+  intermediateGroup?: string;
+  address?: string;
+  divisionId: string;
+}): Promise<CloudFunctionResponse> {
+  return callCloudFunction('createReferralLead', data);
+}
+
 export async function bulkCreateLeadsViaCloudFunction(data: {
   rows: any[];
   sourceFilename: string;

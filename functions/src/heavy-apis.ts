@@ -593,6 +593,112 @@ export async function createLeadHandler(payload: any, request: CallableRequest) 
   return { success: true, leadId };
 }
 
+export async function createReferralLeadHandler(payload: any, request: CallableRequest) {
+  const token = await verifyAuthToken(request);
+  requirePROOrAbove(token);
+  const tenantId = token.tenantId as string;
+
+  const { uniqueLeadId: rawId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionId } = payload;
+  const uniqueLeadId = Number(rawId);
+
+  if (!rawId || !parentName || !studentName || !divisionId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: uniqueLeadId, parentName, studentName, divisionId');
+  }
+
+  const idError = validateUniqueLeadId(uniqueLeadId);
+  if (idError) throw new functions.https.HttpsError('invalid-argument', idError);
+
+  // PROs can only create leads in their assigned divisions
+  if (token.role === 'PRO') {
+    const userDoc = await db.collection('users').doc(token.uid).get();
+    if (userDoc.exists) {
+      const assignedDivisionIds: string[] = userDoc.data()!.assignedDivisionIds || [];
+      if (assignedDivisionIds.length > 0 && !assignedDivisionIds.includes(divisionId)) {
+        throw new functions.https.HttpsError('permission-denied', 'Division not assigned to your team');
+      }
+    }
+  }
+
+  // Check Lead ID uniqueness
+  const existing = await db.collection('leads')
+    .where('tenantId', '==', tenantId)
+    .where('uniqueLeadId', '==', uniqueLeadId)
+    .limit(1)
+    .get();
+  if (!existing.empty) {
+    throw new functions.https.HttpsError('already-exists', `Lead ID ${uniqueLeadId} already exists`);
+  }
+
+  // Get division
+  const divisionDoc = await getDivision(divisionId);
+  if (!divisionDoc.exists) throw new functions.https.HttpsError('not-found', 'Division not found');
+  const divisionData = divisionDoc.data()!;
+  const divisionName = divisionData.name;
+
+  // Find team for division
+  let teamId: string | null = null;
+  let assignedPROUids: string[] = [];
+  const teamDoc = await findTeamForDivision(tenantId, divisionId);
+  if (teamDoc) {
+    teamId = teamDoc.id;
+    assignedPROUids = teamDoc.data().memberUids || [];
+  } else {
+    // PRO creating referral in an unassigned division — still assign themselves
+    assignedPROUids = [token.uid];
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const leadRef = db.collection('leads').doc();
+  const leadId = leadRef.id;
+  const cleanedParentPhone = cleanPhoneStr(parentPhone);
+  const cleanedStudentPhone = cleanPhoneStr(studentPhone);
+
+  const leadData: Record<string, any> = {
+    tenantId,
+    uniqueLeadId,
+    parentName: parentName.trim(),
+    parentName_lowercase: parentName.trim().toLowerCase(),
+    studentName: studentName.trim(),
+    studentName_lowercase: studentName.trim().toLowerCase(),
+    parentPhone: cleanedParentPhone || null,
+    studentPhone: cleanedStudentPhone || null,
+    intermediateGroup: intermediateGroup || null,
+    address: address || null,
+    divisionId,
+    divisionName,
+    teamId,
+    assignedPROUids,
+    isReferral: true,
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+    createdByUid: token.uid,
+  };
+
+  const searchFields = buildLeadAssignmentSearchFields(leadData, divisionData);
+
+  const batch = db.batch();
+  batch.set(leadRef, leadData);
+
+  const assignmentId = `${tenantId}__${leadId}`;
+  batch.set(db.collection('leadAssignments').doc(assignmentId), {
+    tenantId,
+    leadId,
+    teamId,
+    assignedPROUids,
+    ...searchFields,
+    isReferral: true,
+    lastStatusCode: null,
+    nextFollowupAt: null,
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await batch.commit();
+  return { success: true, leadId };
+}
+
 export async function bulkCreateLeadsHandler(payload: any, request: CallableRequest) {
   const token = await verifyAuthToken(request);
   requireAdminOrManager(token);
@@ -743,7 +849,7 @@ export async function bulkCreateLeadsHandler(payload: any, request: CallableRequ
 
 export async function updateLeadHandler(payload: any, request: CallableRequest) {
   const token = await verifyAuthToken(request);
-  requireAdminOrManager(token);
+  const tenantId = token.tenantId as string;
 
   const { leadId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionId, active } = payload;
   if (!leadId) throw new functions.https.HttpsError('invalid-argument', 'leadId required');
@@ -751,6 +857,21 @@ export async function updateLeadHandler(payload: any, request: CallableRequest) 
   const leadRef = db.collection('leads').doc(leadId);
   const leadDoc = await leadRef.get();
   if (!leadDoc.exists) throw new functions.https.HttpsError('not-found', 'Lead not found');
+
+  const leadDocData = leadDoc.data()!;
+  const isAdmin = isAdminOrManager(token.role);
+  const isPRO = token.role === 'PRO';
+
+  // PROs can only edit leads assigned to them; they cannot change the area/division
+  if (!isAdmin) {
+    if (!isPRO) throw new functions.https.HttpsError('permission-denied', 'Insufficient permissions');
+    if (!leadDocData.assignedPROUids?.includes(token.uid)) {
+      throw new functions.https.HttpsError('permission-denied', 'Not assigned to this lead');
+    }
+    if (divisionId && divisionId !== leadDocData.divisionId) {
+      throw new functions.https.HttpsError('permission-denied', 'PROs cannot change the area assignment');
+    }
+  }
 
   const updates: Record<string, any> = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
   if (parentName !== undefined) { updates.parentName = parentName.trim(); updates.parentName_lowercase = parentName.trim().toLowerCase(); }
@@ -762,12 +883,12 @@ export async function updateLeadHandler(payload: any, request: CallableRequest) 
   if (active !== undefined) updates.active = active;
 
   let divisionChanged = false;
-  let newDivisionName = leadDoc.data()!.divisionName;
-  let newDivisionId = divisionId || leadDoc.data()!.divisionId;
-  let newTeamId = leadDoc.data()!.teamId;
-  let newAssignedPROUids = leadDoc.data()!.assignedPROUids || [];
+  let newDivisionName = leadDocData.divisionName;
+  let newDivisionId = divisionId || leadDocData.divisionId;
+  let newTeamId = leadDocData.teamId;
+  let newAssignedPROUids = leadDocData.assignedPROUids || [];
 
-  if (divisionId && divisionId !== leadDoc.data()!.divisionId) {
+  if (divisionId && divisionId !== leadDocData.divisionId) {
     divisionChanged = true;
     const divDoc = await getDivision(divisionId);
     if (!divDoc.exists) throw new functions.https.HttpsError('not-found', 'Division not found');
@@ -776,7 +897,7 @@ export async function updateLeadHandler(payload: any, request: CallableRequest) 
     updates.divisionName = newDivisionName;
 
     // Reassign to team for new division
-    const teamDoc = await findTeamForDivision(leadDoc.data()!.tenantId, divisionId);
+    const teamDoc = await findTeamForDivision(leadDocData.tenantId, divisionId);
     if (teamDoc) {
       newTeamId = teamDoc.id;
       newAssignedPROUids = teamDoc.data().memberUids || [];
@@ -791,7 +912,7 @@ export async function updateLeadHandler(payload: any, request: CallableRequest) 
   await leadRef.update(updates);
 
   // Sync to leadAssignments
-  const assignmentId = `${leadDoc.data()!.tenantId}__${leadId}`;
+  const assignmentId = `${leadDocData.tenantId}__${leadId}`;
   const assignmentRef = db.collection('leadAssignments').doc(assignmentId);
   const assignmentUpdates: Record<string, any> = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
 
@@ -1176,10 +1297,10 @@ export async function manageReminderHandler(payload: any, request: CallableReque
     const userDoc = await db.collection('users').doc(token.uid).get();
     const userName = userDoc.exists ? userDoc.data()!.displayName : 'Unknown';
 
-    // Compute recipient UIDs: team members + all admins/managers
+    // Compute recipient UIDs: creating PRO + team members + all admins/managers
     const adminManagerUids = await getTenantAdminManagerUids(tenantId);
     let teamMemberUids = leadData.assignedPROUids || [];
-    const recipientUids = [...new Set([...teamMemberUids, ...adminManagerUids])];
+    const recipientUids = [...new Set([token.uid, ...teamMemberUids, ...adminManagerUids])];
 
     // Resolve team name for richer admin/manager display
     let teamName: string | null = null;
