@@ -1,11 +1,11 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { isAlreadyProcessed, buildLeadAssignmentSearchFields } from './utils';
 
 const db = admin.firestore();
 
 // ─── onLeadCreated ────────────────────────────────────────────────────
-export const onLeadCreated = (functions as any).firestore
+export const onLeadCreated = functions.firestore
   .document('leads/{leadId}')
   .onCreate(async (snap: any, context: any) => {
     const lead = snap.data();
@@ -43,7 +43,7 @@ export const onLeadCreated = (functions as any).firestore
   });
 
 // ─── onLeadUpdated ────────────────────────────────────────────────────
-export const onLeadUpdated = (functions as any).firestore
+export const onLeadUpdated = functions.firestore
   .document('leads/{leadId}')
   .onUpdate(async (change: any, context: any) => {
     const eventId = `leadUpdate_${context.params.leadId}_${change.after.updateTime?.seconds || Date.now()}`;
@@ -72,7 +72,10 @@ export const onLeadUpdated = (functions as any).firestore
       assignedPROUids: after.assignedPROUids || [],
       ...searchFields,
       lastStatusCode: after.lastStatusCode || null,
+      lastStatusLabel: after.lastStatusLabel || null,
+      lastApproachType: after.lastApproachType || null,
       nextFollowupAt: after.nextFollowupAt || null,
+      joinedCollegeName: after.joinedCollegeName || null,
       active: after.active !== false,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -88,7 +91,7 @@ export const onLeadUpdated = (functions as any).firestore
   });
 
 // ─── onLeadDeleted ────────────────────────────────────────────────────
-export const onLeadDeleted = (functions as any).firestore
+export const onLeadDeleted = functions.firestore
   .document('leads/{leadId}')
   .onDelete(async (snap: any, context: any) => {
     const lead = snap.data();
@@ -108,7 +111,7 @@ export const onLeadDeleted = (functions as any).firestore
   });
 
 // ─── onStatusUpdateCreated ────────────────────────────────────────────
-export const onStatusUpdateCreated = (functions as any).firestore
+export const onStatusUpdateCreated = functions.firestore
   .document('leads/{leadId}/statusUpdates/{updateId}')
   .onCreate(async (snap: any, context: any) => {
     const eventId = `statusUpdate_${context.params.leadId}_${context.params.updateId}`;
@@ -166,7 +169,7 @@ export const onStatusUpdateCreated = (functions as any).firestore
   });
 
 // ─── onTeamUpdated ────────────────────────────────────────────────────
-export const onTeamUpdated = (functions as any).firestore
+export const onTeamUpdated = functions.firestore
   .document('teams/{teamId}')
   .onUpdate(async (change: any, context: any) => {
     const eventId = `teamUpdate_${context.params.teamId}_${change.after.updateTime?.seconds || Date.now()}`;
@@ -228,10 +231,45 @@ export const onTeamUpdated = (functions as any).firestore
         }
       }
     }
+
+    // Update PRO user docs with teamId and assignedDivisionIds
+    if (membersChanged) {
+      const oldMembers: string[] = before.memberUids || [];
+      const newMembers: string[] = after.memberUids || [];
+      const removedMembers = oldMembers.filter((uid: string) => !newMembers.includes(uid));
+      const userNow = admin.firestore.FieldValue.serverTimestamp();
+
+      // Clear removed members
+      for (const uid of removedMembers) {
+        await db.collection('users').doc(uid).update({
+          teamId: null,
+          assignedDivisionIds: [],
+          updatedAt: userNow,
+        });
+      }
+
+      // Update current members
+      for (const uid of newMembers) {
+        await db.collection('users').doc(uid).update({
+          teamId,
+          assignedDivisionIds: after.divisionIds || [],
+          updatedAt: userNow,
+        });
+      }
+    } else if (divisionsChanged) {
+      // Divisions changed but members didn't — just update assignedDivisionIds for all members
+      const userNow = admin.firestore.FieldValue.serverTimestamp();
+      for (const uid of (after.memberUids || [])) {
+        await db.collection('users').doc(uid).update({
+          assignedDivisionIds: after.divisionIds || [],
+          updatedAt: userNow,
+        });
+      }
+    }
   });
 
 // ─── onTeamDeleted ────────────────────────────────────────────────────
-export const onTeamDeleted = (functions as any).firestore
+export const onTeamDeleted = functions.firestore
   .document('teams/{teamId}')
   .onDelete(async (snap: any, context: any) => {
     const teamData = snap.data();
@@ -248,10 +286,20 @@ export const onTeamDeleted = (functions as any).firestore
     for (const doc of assignmentSnap.docs) {
       await doc.ref.update({ teamId: null, assignedPROUids: [], updatedAt: now });
     }
+
+    // Clear teamId/assignedDivisionIds on PRO user docs
+    const memberUids: string[] = teamData.memberUids || [];
+    for (const uid of memberUids) {
+      await db.collection('users').doc(uid).update({
+        teamId: null,
+        assignedDivisionIds: [],
+        updatedAt: now,
+      });
+    }
   });
 
 // ─── onReminderCreated ────────────────────────────────────────────────
-export const onReminderCreated = (functions as any).firestore
+export const onReminderCreated = functions.firestore
   .document('reminders/{reminderId}')
   .onCreate(async (snap: any, context: any) => {
     const data = snap.data();
@@ -286,7 +334,7 @@ export const onReminderCreated = (functions as any).firestore
   });
 
 // ─── onReminderStatusChanged ──────────────────────────────────────────
-export const onReminderStatusChanged = (functions as any).firestore
+export const onReminderStatusChanged = functions.firestore
   .document('reminders/{reminderId}')
   .onUpdate(async (change: any, context: any) => {
     const before = change.before.data();
@@ -347,7 +395,7 @@ export const onReminderStatusChanged = (functions as any).firestore
   });
 
 // ─── onUserUpdated ────────────────────────────────────────────────────
-export const onUserUpdated = (functions as any).firestore
+export const onUserUpdated = functions.firestore
   .document('users/{uid}')
   .onUpdate(async (change: any, context: any) => {
     const before = change.before.data();

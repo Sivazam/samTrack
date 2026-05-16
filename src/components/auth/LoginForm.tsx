@@ -12,7 +12,7 @@ import { AlertTriangle, Loader2, LogIn, KeyRound, User } from 'lucide-react';
 import Image from 'next/image';
 
 export function LoginForm() {
-  const { login, resetPassword } = useAuth();
+  const { login, resetPassword, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +21,13 @@ export function LoginForm() {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
+
+  // If user is already logged in, redirect them back to dashboard
+  React.useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/');
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,12 +52,20 @@ export function LoginForm() {
     }
   };
 
+  if (authLoading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
+
   if (showReset) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/30">
-        <Card className="w-full max-w-sm shadow-xl border-indigo-100/50 bg-white/80 backdrop-blur-sm">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30">
+        <Card className="w-full max-w-sm shadow-xl border-emerald-100/50 bg-white/80 backdrop-blur-sm rounded-2xl">
           <CardHeader className="text-center space-y-3 pb-2">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-200/50">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200/50">
               <KeyRound className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-lg font-semibold text-slate-800">Reset Password</h2>
@@ -58,8 +73,8 @@ export function LoginForm() {
           </CardHeader>
           <CardContent className="space-y-4">
             {resetSent ? (
-              <Alert className="border-indigo-200 bg-indigo-50/50">
-                <AlertDescription className="text-xs text-indigo-800">
+              <Alert className="border-emerald-200 bg-emerald-50/50">
+                <AlertDescription className="text-xs text-emerald-800">
                   Password reset email sent. Check your inbox.
                 </AlertDescription>
               </Alert>
@@ -67,14 +82,14 @@ export function LoginForm() {
               <>
                 <div>
                   <Label className="text-xs">Email</Label>
-                  <Input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="your@email.com" />
+                  <Input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="your@email.com" className="rounded-xl border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20 bg-slate-50/50" />
                 </div>
-                <Button onClick={handleReset} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md" disabled={!resetEmail}>
+                <Button onClick={handleReset} className="w-full h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md" disabled={!resetEmail}>
                   Send Reset Link
                 </Button>
               </>
             )}
-            <Button variant="link" className="w-full text-xs text-indigo-600 hover:text-indigo-700" onClick={() => setShowReset(false)}>
+            <Button variant="link" className="w-full text-xs text-emerald-600 hover:text-emerald-700" onClick={() => setShowReset(false)}>
               Back to Login
             </Button>
           </CardContent>
@@ -84,36 +99,36 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/30 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30 relative overflow-hidden">
       {/* Subtle background decoration */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-indigo-100/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-violet-100/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] bg-indigo-50/20 rounded-full blur-3xl" />
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-100/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-teal-100/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] bg-emerald-50/20 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-sm space-y-6 relative z-10">
         {/* Header / Branding */}
         <div className="text-center space-y-3">
-          <div className="mx-auto w-20 h-20 rounded-2xl overflow-hidden shadow-2xl shadow-indigo-300/40">
+          <div className="mx-auto w-20 h-20 rounded-2xl overflow-hidden shadow-2xl shadow-emerald-200/40 flex items-center justify-center bg-white border border-slate-100">
             <Image
               src="/logoMain.png"
               alt="Samhitha"
               width={80}
               height={80}
-              className="object-contain w-full h-full"
+              className="object-contain"
               priority
             />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Samhitha</h1>
-            <p className="text-[11px] text-indigo-500 font-semibold tracking-[0.2em] uppercase mt-0.5">Admissions Tracker</p>
+            <p className="text-[11px] text-emerald-600 font-semibold tracking-[0.2em] uppercase mt-0.5">Admissions Tracker</p>
           </div>
           <p className="text-sm text-slate-500">Sign in to manage your admissions pipeline</p>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-xl border-indigo-100/50 bg-white/80 backdrop-blur-sm">
+        <Card className="shadow-xl border-emerald-100/50 bg-white/80 backdrop-blur-sm rounded-2xl">
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
@@ -131,7 +146,7 @@ export function LoginForm() {
                     value={emailOrUsername}
                     onChange={e => setEmailOrUsername(e.target.value)}
                     placeholder="you@email.com or username"
-                    className="pl-9 border-indigo-100 focus:border-indigo-400 focus:ring-indigo-400/20"
+                    className="pl-9 border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20 rounded-xl bg-slate-50/50"
                     required
                   />
                 </div>
@@ -146,7 +161,7 @@ export function LoginForm() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="pl-9 border-indigo-100 focus:border-indigo-400 focus:ring-indigo-400/20"
+                    className="pl-9 border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20 rounded-xl bg-slate-50/50"
                     required
                   />
                 </div>
@@ -154,7 +169,7 @@ export function LoginForm() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-medium shadow-lg shadow-indigo-200/50 transition-all duration-200"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium shadow-lg shadow-emerald-200/50 transition-all duration-200 rounded-xl h-10"
                 disabled={loading || !emailOrUsername || !password}
               >
                 {loading ? (
@@ -168,7 +183,7 @@ export function LoginForm() {
               <Button
                 type="button"
                 variant="link"
-                className="w-full text-xs text-indigo-600 hover:text-indigo-700"
+                className="w-full text-xs text-emerald-600 hover:text-emerald-700"
                 onClick={() => setShowReset(true)}
               >
                 Forgot password?

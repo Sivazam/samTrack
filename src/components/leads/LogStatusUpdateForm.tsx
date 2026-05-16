@@ -17,6 +17,7 @@ import { Lead, TenantConfig, ApproachType, StatusOption, GpsLocation } from '@/t
 import { logStatusUpdateViaCloudFunction } from '@/lib/cloud-functions';
 import { captureGPS } from '@/lib/gps-capture';
 import { useOfflineGuard } from '@/hooks/useOfflineGuard';
+import { useToast } from '@/hooks/use-toast';
 
 interface LogStatusUpdateFormProps {
   lead: Lead;
@@ -26,9 +27,10 @@ interface LogStatusUpdateFormProps {
 export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps) {
   const { user } = useAuth();
   const { guardedMutation } = useOfflineGuard();
+  const { toast } = useToast();
   const [tenantConfig, setTenantConfig] = useState<TenantConfig | null>(null);
-  const [approachType, setApproachType] = useState<ApproachType>('PHONE');
-  const [statusCode, setStatusCode] = useState('');
+  const [approachType, setApproachType] = useState<ApproachType>((lead as any).lastApproachType || 'PHONE');
+  const [statusCode, setStatusCode] = useState(lead.lastStatusCode || '');
   const [comments, setComments] = useState('');
   const [joinedCollegeName, setJoinedCollegeName] = useState('');
   const [accompanyingMemberUid, setAccompanyingMemberUid] = useState('');
@@ -46,6 +48,13 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
       doc(db, 'tenantConfig', user.tenantId),
       (doc) => {
         if (doc.exists()) setTenantConfig(doc.data() as TenantConfig);
+      },
+      (error) => {
+        if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+          console.warn('Permission denied for tenantConfig — claims may not be synced yet');
+          return;
+        }
+        console.warn('Snapshot listener error:', error.code || error.message);
       }
     );
     return () => unsubscribe();
@@ -58,9 +67,7 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
       captureGPS({ required: true })
         .then(loc => {
           setGpsLocation(loc);
-          if (loc && loc.accuracyMeters > 100) {
-            setGpsError('Low GPS accuracy — proceed anyway?');
-          }
+
         })
         .catch(err => setGpsError(err.message));
     } else {
@@ -131,7 +138,29 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
           </p>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {lead.lastStatusCode && (
+          <div className="bg-slate-50 border rounded-lg p-3 mt-2 flex flex-col gap-1">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Current Status</span>
+            <div className="flex items-center gap-2 mt-1">
+              {lead.lastApproachType && (
+                <Badge variant="outline" className="text-[10px] bg-white">
+                  {lead.lastApproachType}
+                </Badge>
+              )}
+              {lead.lastStatusLabel ? (
+                <Badge variant="secondary" className="text-xs">
+                  {lead.lastStatusLabel}
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  {lead.lastStatusCode}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-4 pt-2">
           {/* Approach Type */}
           <div>
             <Label className="text-xs">Approach Type</Label>
@@ -153,7 +182,7 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
                 <Alert>
                   <MapPin className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    Location captured: {gpsLocation.lat.toFixed(4)}, {gpsLocation.lng.toFixed(4)} (±{Math.round(gpsLocation.accuracyMeters)}m)
+                    Location attached securely.
                     {gpsError && <span className="text-amber-600 block mt-1">{gpsError}</span>}
                   </AlertDescription>
                 </Alert>
@@ -232,7 +261,7 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={submitting || !statusCode || ((approachType === 'DOORSTEP' || approachType === 'WALK_IN') && !gpsLocation)}>
+          <Button onClick={handleSubmit} disabled={submitting || !statusCode || ((approachType === 'DOORSTEP' || approachType === 'WALK_IN') && !gpsLocation)} className="bg-emerald-600 hover:bg-emerald-700">
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Activity className="h-4 w-4 mr-1" />}
             Log Update
           </Button>

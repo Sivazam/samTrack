@@ -51,8 +51,10 @@ exports.getDashboardStatsHandler = getDashboardStatsHandler;
 exports.adminCreateTenantHandler = adminCreateTenantHandler;
 exports.adminUpdateTenantHandler = adminUpdateTenantHandler;
 exports.syncClaimsHandler = syncClaimsHandler;
+exports.resolveUsernameToEmailHandler = resolveUsernameToEmailHandler;
+exports.resetTenantDataHandler = resetTenantDataHandler;
 const admin = __importStar(require("firebase-admin"));
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 const utils_1 = require("./utils");
 const db = admin.firestore();
 const auth = admin.auth();
@@ -89,7 +91,23 @@ async function getTenantAdminManagerUids(tenantId) {
 async function createUserHandler(payload, request) {
     const token = await (0, utils_1.verifyAuthToken)(request);
     (0, utils_1.requireAdminOrManager)(token);
-    const tenantId = token.tenantId;
+    // SUPER_ADMIN can specify a target tenantId to create users in any college
+    // Other roles are scoped to their own tenantId
+    let tenantId;
+    if (token.role === 'SUPER_ADMIN' && payload.tenantId) {
+        tenantId = payload.tenantId;
+        // Verify the tenant exists
+        const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+        if (!tenantDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'Target tenant not found');
+        }
+    }
+    else {
+        tenantId = token.tenantId;
+    }
+    if (!tenantId) {
+        throw new functions.https.HttpsError('invalid-argument', 'tenantId required');
+    }
     const { email, username, password, displayName, role, teamId, assignedDivisionIds, phone } = payload;
     // Validate
     if (!email || !username || !password || !displayName || !role) {
@@ -108,11 +126,23 @@ async function createUserHandler(payload, request) {
     const indexDocId = `${tenantId}__${usernameLower}`;
     // Run in transaction
     return db.runTransaction(async (tx) => {
+        var _a;
         // Check username uniqueness
         const indexRef = db.collection('usernameIndex').doc(indexDocId);
         const indexDoc = await tx.get(indexRef);
         if (indexDoc.exists) {
-            throw new functions.https.HttpsError('already-exists', 'Username already taken');
+            // Check if the entry is stale (the referenced user doc no longer exists)
+            const existingUid = (_a = indexDoc.data()) === null || _a === void 0 ? void 0 : _a.uid;
+            if (existingUid) {
+                const existingUserDoc = await tx.get(db.collection('users').doc(existingUid));
+                if (existingUserDoc.exists) {
+                    throw new functions.https.HttpsError('already-exists', 'Username already taken');
+                }
+                // Stale index entry — fall through and allow creation (will overwrite the index doc)
+            }
+            else {
+                throw new functions.https.HttpsError('already-exists', 'Username already taken');
+            }
         }
         // Create Auth user
         let uid;
@@ -178,7 +208,7 @@ async function updateUserHandler(payload, request) {
     if (!userDoc.exists)
         throw new functions.https.HttpsError('not-found', 'User not found');
     const userData = userDoc.data();
-    return db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
         const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
         if (displayName !== undefined)
             updates.displayName = displayName;
@@ -230,6 +260,53 @@ async function updateUserHandler(payload, request) {
         }
         return { success: true };
     });
+    // Cascade: remove user's UID from leadAssignments and leads when they leave
+    // a team (teamId set to null/different) or are deactivated. updateUserHandler
+    // and manageTeam are separate flows — manageTeam handles the team-level cascade
+    // but direct user updates bypass it entirely, leaving stale assignedPROUids.
+    const isLeavingTeam = teamId === null || (teamId !== undefined && teamId !== userData.teamId);
+    const isDeactivating = active === false;
+    if ((isLeavingTeam || isDeactivating) && userData.tenantId) {
+        const nowTs = admin.firestore.FieldValue.serverTimestamp();
+        // Remove from leadAssignments
+        const assignmentSnap = await db.collection('leadAssignments')
+            .where('tenantId', '==', userData.tenantId)
+            .where('assignedPROUids', 'array-contains', userId)
+            .where('active', '==', true)
+            .get();
+        if (!assignmentSnap.empty) {
+            const ops = assignmentSnap.docs.map(d => (batch) => {
+                batch.update(d.ref, {
+                    assignedPROUids: admin.firestore.FieldValue.arrayRemove(userId),
+                    updatedAt: nowTs,
+                });
+            });
+            await (0, utils_1.commitInChunks)(db, ops);
+        }
+        // Remove from leads
+        const leadSnap = await db.collection('leads')
+            .where('tenantId', '==', userData.tenantId)
+            .where('assignedPROUids', 'array-contains', userId)
+            .where('active', '==', true)
+            .get();
+        if (!leadSnap.empty) {
+            const leadOps = leadSnap.docs.map(d => (batch) => {
+                batch.update(d.ref, {
+                    assignedPROUids: admin.firestore.FieldValue.arrayRemove(userId),
+                    updatedAt: nowTs,
+                });
+            });
+            await (0, utils_1.commitInChunks)(db, leadOps);
+        }
+        // Remove user from old team's memberUids so the team stays consistent
+        if (isLeavingTeam && userData.teamId) {
+            await db.collection('teams').doc(userData.teamId).update({
+                memberUids: admin.firestore.FieldValue.arrayRemove(userId),
+                updatedAt: nowTs,
+            });
+        }
+    }
+    return result;
 }
 async function deactivateUserHandler(payload, request) {
     return updateUserHandler({ userId: payload.userId, active: false }, request);
@@ -246,8 +323,22 @@ async function manageTeamHandler(payload, request) {
         if (!name || !memberUids || memberUids.length < 1) {
             throw new functions.https.HttpsError('invalid-argument', 'Name and at least 1 member required');
         }
-        if (memberUids.length > 2) {
-            throw new functions.https.HttpsError('invalid-argument', 'Team can have at most 2 members');
+        if (memberUids.length > 5) {
+            throw new functions.https.HttpsError('invalid-argument', 'Team can have at most 5 members');
+        }
+        // Ensure no PRO is already in another active team
+        for (const uid of memberUids) {
+            const existingSnap = await db.collection('teams')
+                .where('tenantId', '==', tenantId)
+                .where('memberUids', 'array-contains', uid)
+                .where('active', '==', true)
+                .limit(1)
+                .get();
+            if (!existingSnap.empty) {
+                const userDoc = await db.collection('users').doc(uid).get();
+                const uname = userDoc.exists ? userDoc.data().displayName : uid;
+                throw new functions.https.HttpsError('invalid-argument', `${uname} is already a member of another active team`);
+            }
         }
         const now = admin.firestore.FieldValue.serverTimestamp();
         const teamRef = db.collection('teams').doc();
@@ -265,6 +356,15 @@ async function manageTeamHandler(payload, request) {
         if (divisionIds && divisionIds.length > 0) {
             await updateAssignmentsForTeams(tenantId, teamRef.id, memberUids, divisionIds);
         }
+        // Update PRO user docs with teamId and assignedDivisionIds
+        const nowTs = admin.firestore.FieldValue.serverTimestamp();
+        for (const uid of memberUids) {
+            await db.collection('users').doc(uid).update({
+                teamId: teamRef.id,
+                assignedDivisionIds: divisionIds || [],
+                updatedAt: nowTs,
+            });
+        }
         return { success: true, teamId: teamRef.id };
     }
     if (subAction === 'update') {
@@ -278,8 +378,25 @@ async function manageTeamHandler(payload, request) {
         if (name !== undefined)
             updates.name = name;
         if (memberUids !== undefined) {
-            if (memberUids.length < 1 || memberUids.length > 2) {
-                throw new functions.https.HttpsError('invalid-argument', 'Team must have 1-2 members');
+            if (memberUids.length < 1 || memberUids.length > 5) {
+                throw new functions.https.HttpsError('invalid-argument', 'Team must have 1-5 members');
+            }
+            // Ensure no new member is already in a different active team
+            const oldMemberSet = new Set(teamDoc.data().memberUids || []);
+            for (const uid of memberUids) {
+                if (!oldMemberSet.has(uid)) {
+                    const existingSnap = await db.collection('teams')
+                        .where('tenantId', '==', tenantId)
+                        .where('memberUids', 'array-contains', uid)
+                        .where('active', '==', true)
+                        .limit(1)
+                        .get();
+                    if (!existingSnap.empty) {
+                        const userDoc = await db.collection('users').doc(uid).get();
+                        const uname = userDoc.exists ? userDoc.data().displayName : uid;
+                        throw new functions.https.HttpsError('invalid-argument', `${uname} is already a member of another active team`);
+                    }
+                }
             }
             updates.memberUids = memberUids;
         }
@@ -290,6 +407,26 @@ async function manageTeamHandler(payload, request) {
         const finalMemberUids = memberUids || teamDoc.data().memberUids;
         const finalDivisionIds = divisionIds || teamDoc.data().divisionIds;
         await updateAssignmentsForTeams(tenantId, teamId, finalMemberUids, finalDivisionIds);
+        // Update PRO user docs with teamId and assignedDivisionIds
+        // First, clear old members who are no longer in the team
+        const oldMemberUids = teamDoc.data().memberUids || [];
+        const removedUids = oldMemberUids.filter((uid) => !finalMemberUids.includes(uid));
+        const updateTs = admin.firestore.FieldValue.serverTimestamp();
+        for (const uid of removedUids) {
+            await db.collection('users').doc(uid).update({
+                teamId: null,
+                assignedDivisionIds: [],
+                updatedAt: updateTs,
+            });
+        }
+        // Then, update current members with new teamId and assignedDivisionIds
+        for (const uid of finalMemberUids) {
+            await db.collection('users').doc(uid).update({
+                teamId,
+                assignedDivisionIds: finalDivisionIds,
+                updatedAt: updateTs,
+            });
+        }
         return { success: true };
     }
     if (subAction === 'dissolve') {
@@ -309,6 +446,29 @@ async function manageTeamHandler(payload, request) {
             batch.update(d.ref, { teamId: admin.firestore.FieldValue.delete(), assignedPROUids: [], updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         });
         await (0, utils_1.commitInChunks)(db, ops);
+        // Also clear teamId/assignedPROUids on the leads collection itself
+        const leadSnap = await db.collection('leads')
+            .where('tenantId', '==', tenantId)
+            .where('teamId', '==', teamId)
+            .where('active', '==', true)
+            .get();
+        const leadOps = leadSnap.docs.map(d => (batch) => {
+            batch.update(d.ref, { teamId: null, assignedPROUids: [], updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        });
+        await (0, utils_1.commitInChunks)(db, leadOps);
+        // Clear teamId/assignedDivisionIds on PRO user docs
+        const teamDoc = await db.collection('teams').doc(teamId).get();
+        if (teamDoc.exists) {
+            const memberUids = teamDoc.data().memberUids || [];
+            const dissolveTs = admin.firestore.FieldValue.serverTimestamp();
+            for (const uid of memberUids) {
+                await db.collection('users').doc(uid).update({
+                    teamId: null,
+                    assignedDivisionIds: [],
+                    updatedAt: dissolveTs,
+                });
+            }
+        }
         return { success: true, clearedAssignments: snap.size };
     }
     throw new functions.https.HttpsError('invalid-argument', `Unknown subAction: ${subAction}`);
@@ -351,8 +511,9 @@ async function createLeadHandler(payload, request) {
     const token = await (0, utils_1.verifyAuthToken)(request);
     (0, utils_1.requireAdminOrManager)(token);
     const tenantId = token.tenantId;
-    const { uniqueLeadId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionId } = payload;
-    if (!uniqueLeadId || !parentName || !studentName || !divisionId) {
+    const { uniqueLeadId: rawId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionId } = payload;
+    const uniqueLeadId = Number(rawId);
+    if (!rawId || !parentName || !studentName || !divisionId) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: uniqueLeadId, parentName, studentName, divisionId');
     }
     const idError = (0, utils_1.validateUniqueLeadId)(uniqueLeadId);
@@ -365,7 +526,7 @@ async function createLeadHandler(payload, request) {
         .limit(1)
         .get();
     if (!existing.empty) {
-        throw new functions.https.HttpsError('already-exists', `Lead with ID '${uniqueLeadId}' already exists`);
+        throw new functions.https.HttpsError('already-exists', `Lead ID ${uniqueLeadId} already exists`);
     }
     // Get division name
     const divisionDoc = await getDivision(divisionId);
@@ -389,7 +550,6 @@ async function createLeadHandler(payload, request) {
     const leadData = {
         tenantId,
         uniqueLeadId,
-        uniqueLeadId_lowercase: uniqueLeadId.toLowerCase(),
         parentName: parentName.trim(),
         parentName_lowercase: parentName.trim().toLowerCase(),
         studentName: studentName.trim(),
@@ -443,9 +603,16 @@ async function bulkCreateLeadsHandler(payload, request) {
             const row = chunk[j];
             const rowNum = i + j + 1;
             try {
-                const { uniqueLeadId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionName, divisionId: rowDivId } = row;
-                if (!uniqueLeadId || !parentName || !studentName) {
-                    errors.push({ row: rowNum, uniqueLeadId, reason: 'Missing required fields' });
+                const { uniqueLeadId: rawRowId, parentName, studentName, parentPhone, studentPhone, intermediateGroup, address, divisionName, divisionId: rowDivId } = row;
+                const uniqueLeadId = Number(rawRowId);
+                if (!rawRowId || !parentName || !studentName) {
+                    errors.push({ row: rowNum, uniqueLeadId: uniqueLeadId || undefined, reason: 'Missing required fields' });
+                    errorRows++;
+                    continue;
+                }
+                const rowIdErr = (0, utils_1.validateUniqueLeadId)(uniqueLeadId);
+                if (rowIdErr) {
+                    errors.push({ row: rowNum, uniqueLeadId: uniqueLeadId || undefined, reason: rowIdErr });
                     errorRows++;
                     continue;
                 }
@@ -495,7 +662,6 @@ async function bulkCreateLeadsHandler(payload, request) {
                 const leadData = {
                     tenantId,
                     uniqueLeadId,
-                    uniqueLeadId_lowercase: uniqueLeadId.toLowerCase(),
                     parentName: parentName.trim(),
                     parentName_lowercase: parentName.trim().toLowerCase(),
                     studentName: studentName.trim(),
@@ -521,7 +687,7 @@ async function bulkCreateLeadsHandler(payload, request) {
                 successRows++;
             }
             catch (e) {
-                errors.push({ row: rowNum, uniqueLeadId: row.uniqueLeadId, reason: e.message || 'Unknown error' });
+                errors.push({ row: rowNum, uniqueLeadId: Number(row.uniqueLeadId) || undefined, reason: e.message || 'Unknown error' });
                 errorRows++;
             }
         }
@@ -722,7 +888,7 @@ async function syncLeadAssignmentsHandler(payload, request) {
 // STATUS UPDATES
 // ═══════════════════════════════════════════════════════════════════════
 async function logStatusUpdateHandler(payload, request) {
-    var _a, _b;
+    var _a, _b, _c;
     const token = await (0, utils_1.verifyAuthToken)(request);
     (0, utils_1.requirePROOrAbove)(token);
     const tenantId = token.tenantId;
@@ -771,9 +937,9 @@ async function logStatusUpdateHandler(payload, request) {
         statusCode,
         statusLabel,
         comments: comments || null,
-        parentPhone: parentPhone || leadData.parentPhone,
-        studentPhone: studentPhone || leadData.studentPhone,
-        intermediateGroup: intermediateGroup || leadData.intermediateGroup,
+        parentPhone: parentPhone || leadData.parentPhone || null,
+        studentPhone: studentPhone || leadData.studentPhone || null,
+        intermediateGroup: intermediateGroup || leadData.intermediateGroup || null,
         joinedCollegeName: joinedCollegeName || null,
         loggedByUid: token.uid,
         loggedByName: userName,
@@ -804,10 +970,12 @@ async function logStatusUpdateHandler(payload, request) {
     batch.update(leadRef, leadUpdates);
     // Also update leadAssignment lastStatusCode
     const assignmentId = `${tenantId}__${leadId}`;
-    batch.update(db.collection('leadAssignments').doc(assignmentId), {
+    batch.set(db.collection('leadAssignments').doc(assignmentId), {
         lastStatusCode: statusCode,
+        lastStatusLabel: statusLabel,
+        lastApproachType: approachType,
         updatedAt: now,
-    });
+    }, { merge: true });
     await batch.commit();
     // Auto-complete previous PENDING reminder for this lead
     try {
@@ -823,6 +991,107 @@ async function logStatusUpdateHandler(payload, request) {
                 completedByUid: token.uid,
                 updatedAt: now,
             });
+        }
+    }
+    catch (_) { }
+    // ─── If the PRO provided a next follow-up date, create a reminder ─────
+    // This is the "follow-up reminder set via Log Update form" path the user expects.
+    if (nextFollowupAt) {
+        try {
+            const dueDate = new Date(nextFollowupAt);
+            if (!isNaN(dueDate.getTime())) {
+                const adminManagerUids = await getTenantAdminManagerUids(tenantId);
+                const teamMemberUids = leadData.assignedPROUids || [];
+                const recipientUids = [...new Set([token.uid, ...teamMemberUids, ...adminManagerUids])];
+                // Resolve team name & PRO names for richer admin display
+                let teamName = null;
+                if (leadData.teamId) {
+                    try {
+                        const teamDoc = await db.collection('teams').doc(leadData.teamId).get();
+                        if (teamDoc.exists)
+                            teamName = teamDoc.data().name || null;
+                    }
+                    catch (_) { }
+                }
+                let assignedPRONames = [];
+                try {
+                    if (teamMemberUids.length > 0) {
+                        const proDocs = await Promise.all(teamMemberUids.map((u) => db.collection('users').doc(u).get()));
+                        assignedPRONames = proDocs.filter(d => d.exists).map(d => d.data().displayName || '');
+                    }
+                }
+                catch (_) { }
+                const leadDisplayName = `${leadData.parentName} / ${leadData.studentName}`;
+                const followupReminderRef = db.collection('reminders').doc();
+                await followupReminderRef.set({
+                    tenantId,
+                    leadId,
+                    leadDisplayName,
+                    uniqueLeadId: leadData.uniqueLeadId,
+                    dueAt: admin.firestore.Timestamp.fromDate(dueDate),
+                    dueDateOnly: false,
+                    note: nextFollowupNote || `Follow up after ${statusLabel}`,
+                    createdByUid: token.uid,
+                    createdByName: userName,
+                    createdByRole: token.role || null,
+                    recipientUids,
+                    teamId: leadData.teamId || null,
+                    teamName,
+                    divisionId: leadData.divisionId || null,
+                    divisionName: leadData.divisionName || null,
+                    assignedPROUids: leadData.assignedPROUids || [],
+                    assignedPRONames,
+                    parentPhone: leadData.parentPhone || null,
+                    studentPhone: leadData.studentPhone || null,
+                    status: 'PENDING',
+                    source: 'LOG_UPDATE_FORM',
+                    createdAt: now,
+                    updatedAt: now,
+                });
+                // Denorm on the lead
+                await leadRef.update({
+                    nextFollowupAt: admin.firestore.Timestamp.fromDate(dueDate),
+                    nextFollowupReminderId: followupReminderRef.id,
+                    updatedAt: now,
+                });
+            }
+        }
+        catch (e) {
+            console.warn('Failed to create follow-up reminder from log update:', e);
+        }
+    }
+    // Auto-create reminder if the status option has autoReminderDate
+    try {
+        const configDoc = await db.collection('tenantConfig').doc(tenantId).get();
+        if (configDoc.exists) {
+            const option = (_c = configDoc.data().statusOptions) === null || _c === void 0 ? void 0 : _c.find((o) => o.code === statusCode);
+            if (option === null || option === void 0 ? void 0 : option.autoReminderDate) {
+                const baseDate = new Date(option.autoReminderDate);
+                const offset = typeof option.autoReminderOffset === 'number' ? option.autoReminderOffset : 0;
+                baseDate.setDate(baseDate.getDate() + offset);
+                if (baseDate > new Date()) {
+                    const adminManagerUids = await getTenantAdminManagerUids(tenantId);
+                    const recipientUids = [...new Set([token.uid, ...adminManagerUids])];
+                    const leadDisplayName = `${leadData.parentName} / ${leadData.studentName}`;
+                    const autoReminderRef = db.collection('reminders').doc();
+                    await autoReminderRef.set({
+                        tenantId,
+                        leadId,
+                        leadDisplayName,
+                        uniqueLeadId: leadData.uniqueLeadId,
+                        dueAt: admin.firestore.Timestamp.fromDate(baseDate),
+                        dueDateOnly: true,
+                        note: `Auto: ${statusLabel} result day`,
+                        createdByUid: token.uid,
+                        createdByName: userName,
+                        recipientUids,
+                        status: 'PENDING',
+                        autoCreated: true,
+                        createdAt: now,
+                        updatedAt: now,
+                    });
+                }
+            }
         }
     }
     catch (_) { }
@@ -849,6 +1118,26 @@ async function manageReminderHandler(payload, request) {
         const adminManagerUids = await getTenantAdminManagerUids(tenantId);
         let teamMemberUids = leadData.assignedPROUids || [];
         const recipientUids = [...new Set([...teamMemberUids, ...adminManagerUids])];
+        // Resolve team name for richer admin/manager display
+        let teamName = null;
+        if (leadData.teamId) {
+            try {
+                const teamDoc = await db.collection('teams').doc(leadData.teamId).get();
+                if (teamDoc.exists)
+                    teamName = teamDoc.data().name || null;
+            }
+            catch (_) { }
+        }
+        // Resolve assigned PRO names
+        let assignedPRONames = [];
+        try {
+            const proUidsList = leadData.assignedPROUids || [];
+            if (proUidsList.length > 0) {
+                const proDocs = await Promise.all(proUidsList.map((u) => db.collection('users').doc(u).get()));
+                assignedPRONames = proDocs.filter(d => d.exists).map(d => d.data().displayName || '');
+            }
+        }
+        catch (_) { }
         const leadDisplayName = `${leadData.parentName} / ${leadData.studentName}`;
         const now = admin.firestore.FieldValue.serverTimestamp();
         const reminderRef = db.collection('reminders').doc();
@@ -862,7 +1151,17 @@ async function manageReminderHandler(payload, request) {
             note: note || null,
             createdByUid: token.uid,
             createdByName: userName,
+            createdByRole: token.role || null,
             recipientUids,
+            // ─── Rich metadata for admin/manager dashboards ───────────────
+            teamId: leadData.teamId || null,
+            teamName,
+            divisionId: leadData.divisionId || null,
+            divisionName: leadData.divisionName || null,
+            assignedPROUids: leadData.assignedPROUids || [],
+            assignedPRONames,
+            parentPhone: leadData.parentPhone || null,
+            studentPhone: leadData.studentPhone || null,
             status: 'PENDING',
             createdAt: now,
             updatedAt: now,
@@ -894,7 +1193,7 @@ async function manageReminderHandler(payload, request) {
         }
         else if (snoozeDuration === 'tomorrow') {
             snoozeDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-            snoozeDate.setHours(9, 0, 0, 0);
+            snoozeDate.setHours(10, 0, 0, 0);
         }
         else {
             snoozeDate = new Date(dueAt || Date.now() + 60 * 60 * 1000);
@@ -1142,7 +1441,7 @@ async function adminCreateTenantHandler(payload, request) {
             createdByUid: token.uid,
         });
         await db.collection('usernameIndex').doc(`${tenantId}__${username}`).set({
-            uid, email: adminEmail, tenantId, createdAt: now,
+            uid, email: adminEmail, tenantId, username: username.toLowerCase(), createdAt: now,
         });
         // Create default tenantConfig for the new college
         const defaultStatusOptions = [
@@ -1205,5 +1504,95 @@ async function syncClaimsHandler(payload, request) {
         customClaims.teamId = userData.teamId;
     await auth.setCustomUserClaims(uid, customClaims);
     return { success: true, claims: customClaims };
+}
+// ═══════════════════════════════════════════════════════════════════════
+// USERNAME RESOLUTION (unauthenticated — used during login)
+// ═══════════════════════════════════════════════════════════════════════
+async function resolveUsernameToEmailHandler(payload, _request) {
+    const { username, tenantId } = payload;
+    if (!username || typeof username !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid request');
+    }
+    const u = username.toLowerCase().trim();
+    if (!/^[a-z0-9._-]{3,30}$/.test(u) || u.includes('__')) {
+        throw new functions.https.HttpsError('not-found', 'User not found');
+    }
+    await (0, utils_1.checkRateLimit)(db, `resolveUsername:${u}`, 10);
+    if (tenantId) {
+        const snap = await db.doc(`usernameIndex/${tenantId}__${u}`).get();
+        if (!snap.exists)
+            throw new functions.https.HttpsError('not-found', 'User not found');
+        return { email: snap.data().email };
+    }
+    const q = await db.collection('usernameIndex').where('username', '==', u).limit(2).get();
+    if (q.empty)
+        throw new functions.https.HttpsError('not-found', 'User not found');
+    if (q.size > 1)
+        throw new functions.https.HttpsError('failed-precondition', 'Tenant required');
+    return { email: q.docs[0].data().email };
+}
+// ═══════════════════════════════════════════════════════════════════════
+// RESET TENANT DATA (Admin only — for seeding / demo reset)
+// ═══════════════════════════════════════════════════════════════════════
+async function resetTenantDataHandler(payload, request) {
+    const token = await (0, utils_1.verifyAuthToken)(request);
+    (0, utils_1.requireAdminOrManager)(token);
+    const tenantId = token.tenantId;
+    const { confirm } = payload;
+    if (confirm !== 'DELETE_ALL_DATA') {
+        throw new functions.https.HttpsError('invalid-argument', 'Must pass confirm: "DELETE_ALL_DATA"');
+    }
+    let deleted = { leads: 0, leadAssignments: 0, teams: 0, divisions: 0, reminders: 0 };
+    // Helper: delete all docs in a query
+    async function deleteQuery(snap) {
+        const ops = snap.docs.map(d => (b) => b.delete(d.ref));
+        await (0, utils_1.commitInChunks)(db, ops);
+        return snap.size;
+    }
+    // Delete leads + their statusUpdates subcollections
+    const leadSnap = await db.collection('leads').where('tenantId', '==', tenantId).get();
+    // Delete statusUpdates subcollection for each lead first
+    for (const leadDoc of leadSnap.docs) {
+        const subSnap = await leadDoc.ref.collection('statusUpdates').get();
+        if (subSnap.size > 0) {
+            const subOps = subSnap.docs.map(d => (b) => b.delete(d.ref));
+            await (0, utils_1.commitInChunks)(db, subOps);
+        }
+    }
+    deleted.leads = await deleteQuery(leadSnap);
+    // Delete leadAssignments
+    const laSnap = await db.collection('leadAssignments').where('tenantId', '==', tenantId).get();
+    deleted.leadAssignments = await deleteQuery(laSnap);
+    // Delete reminders
+    const remSnap = await db.collection('reminders').where('tenantId', '==', tenantId).get();
+    deleted.reminders = await deleteQuery(remSnap);
+    // Delete teams
+    const teamSnap = await db.collection('teams').where('tenantId', '==', tenantId).get();
+    deleted.teams = await deleteQuery(teamSnap);
+    // Delete divisions
+    const divSnap = await db.collection('divisions').where('tenantId', '==', tenantId).get();
+    deleted.divisions = await deleteQuery(divSnap);
+    // Clear teamId / assignedDivisionIds on PRO user docs, then delete them + Auth accounts
+    const proSnap = await db.collection('users')
+        .where('tenantId', '==', tenantId)
+        .where('role', '==', 'PRO')
+        .get();
+    const proUsernames = proSnap.docs.map(d => d.data().username).filter(Boolean);
+    for (const d of proSnap.docs) {
+        try {
+            await auth.deleteUser(d.id);
+        }
+        catch (_) { /* already gone */ }
+    }
+    const deleteProOps = proSnap.docs.map(d => (b) => b.delete(d.ref));
+    await (0, utils_1.commitInChunks)(db, deleteProOps);
+    // Delete usernameIndex entries for deleted PRO users
+    // Use document IDs directly: {tenantId}__{username}
+    if (proUsernames.length > 0) {
+        const idxRefs = proUsernames.map(u => db.collection('usernameIndex').doc(`${tenantId}__${u}`));
+        const deleteIdxOps = idxRefs.map(ref => (b) => b.delete(ref));
+        await (0, utils_1.commitInChunks)(db, deleteIdxOps);
+    }
+    return { success: true, deleted };
 }
 //# sourceMappingURL=heavy-apis.js.map

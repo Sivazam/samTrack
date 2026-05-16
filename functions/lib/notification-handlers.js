@@ -39,7 +39,7 @@ exports.markNotificationReadHandler = markNotificationReadHandler;
 exports.sendStatusUpdateNotificationHandler = sendStatusUpdateNotificationHandler;
 exports.sendReminderPushHandler = sendReminderPushHandler;
 const admin = __importStar(require("firebase-admin"));
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 const utils_1 = require("./utils");
 const db = admin.firestore();
 const messaging = admin.messaging();
@@ -134,7 +134,7 @@ async function registerFcmTokenHandler(payload, request) {
     return { success: true };
 }
 async function unregisterFcmTokenHandler(payload, request) {
-    var _a;
+    var _a, _b;
     const token = await (0, utils_1.verifyAuthToken)(request);
     const { deviceId } = payload;
     if (!deviceId)
@@ -144,8 +144,20 @@ async function unregisterFcmTokenHandler(payload, request) {
     const userDoc = await userRef.get();
     if (userDoc.exists) {
         const devices = ((_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fcmDevices) || [];
-        const updatedDevices = devices.map((d) => d.deviceId === deviceId ? Object.assign(Object.assign({}, d), { isActive: false }) : d);
+        // Remove ONLY the matching device (not mark inactive)
+        const updatedDevices = devices.filter((d) => d.deviceId !== deviceId);
         await userRef.update({ fcmDevices: updatedDevices, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    }
+    // Also remove from tenant doc if admin/manager
+    const tenantId = token.tenantId;
+    if (tenantId && (token.role === 'COLLEGE_ADMIN' || token.role === 'MANAGER')) {
+        const tenantRef = db.collection('tenants').doc(tenantId);
+        const tenantDoc = await tenantRef.get();
+        if (tenantDoc.exists) {
+            const tenantDevices = ((_b = tenantDoc.data()) === null || _b === void 0 ? void 0 : _b.fcmDevices) || [];
+            const updatedTenantDevices = tenantDevices.filter((d) => d.deviceId !== deviceId);
+            await tenantRef.update({ fcmDevices: updatedTenantDevices, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        }
     }
     return { success: true };
 }

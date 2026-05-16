@@ -19,5 +19,5 @@ export declare function isAlreadyProcessed(db: admin.firestore.Firestore, eventI
 export declare function commitInChunks(db: admin.firestore.Firestore, operations: Array<(batch: admin.firestore.WriteBatch) => void>, batchSize?: number): Promise<number>;
 export declare const RESERVED_USERNAMES: Set<string>;
 export declare function validateUsername(username: string): string | null;
-export declare function validateUniqueLeadId(id: string): string | null;
+export declare function validateUniqueLeadId(id: number | string): string | null;
 export declare function buildLeadAssignmentSearchFields(lead: any, division?: any): Record<string, any>;

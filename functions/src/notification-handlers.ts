@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import { verifyAuthToken } from './utils';
 
 const db = admin.firestore();
@@ -118,10 +118,21 @@ export async function unregisterFcmTokenHandler(payload: any, request: any) {
 
   if (userDoc.exists) {
     const devices: any[] = userDoc.data()?.fcmDevices || [];
-    const updatedDevices = devices.map((d: any) =>
-      d.deviceId === deviceId ? { ...d, isActive: false } : d
-    );
+    // Remove ONLY the matching device (not mark inactive)
+    const updatedDevices = devices.filter((d: any) => d.deviceId !== deviceId);
     await userRef.update({ fcmDevices: updatedDevices, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+  }
+
+  // Also remove from tenant doc if admin/manager
+  const tenantId = token.tenantId;
+  if (tenantId && (token.role === 'COLLEGE_ADMIN' || token.role === 'MANAGER')) {
+    const tenantRef = db.collection('tenants').doc(tenantId);
+    const tenantDoc = await tenantRef.get();
+    if (tenantDoc.exists) {
+      const tenantDevices: any[] = tenantDoc.data()?.fcmDevices || [];
+      const updatedTenantDevices = tenantDevices.filter((d: any) => d.deviceId !== deviceId);
+      await tenantRef.update({ fcmDevices: updatedTenantDevices, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    }
   }
 
   return { success: true };

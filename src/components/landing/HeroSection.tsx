@@ -42,9 +42,9 @@ const categories = [
   {
     label: 'Campus Security',
     icon: Shield,
-    bgColor: 'bg-purple-50',
-    iconBg: 'bg-purple-100',
-    iconColor: 'text-purple-700',
+    bgColor: 'bg-teal-50',
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-700',
     id: 'roles',
   },
 ];

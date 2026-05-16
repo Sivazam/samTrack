@@ -44,39 +44,50 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.002 120);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #4f46e5;
+  --primary: #059669;
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: #4f46e5;
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: #4f46e5;
+  --secondary: oklch(0.97 0.005 160);
+  --secondary-foreground: #059669;
+  --muted: oklch(0.975 0.003 150);
+  --muted-foreground: oklch(0.50 0.01 250);
+  --accent: oklch(0.965 0.01 170);
+  --accent-foreground: #059669;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #4f46e5;
-  --chart-1: #4f46e5;
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --border: oklch(0.918 0.005 160);
+  --input: oklch(0.918 0.005 160);
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #0284c7;
+  --chart-3: #0891b2;
+  --chart-4: #10b981;
+  --chart-5: #06b6d4;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #4f46e5;
+  --sidebar-primary: #059669;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: #4f46e5;
+  --sidebar-accent-foreground: #059669;
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: #4f46e5;
+  --sidebar-ring: #059669;
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
 
 .dark {
   --background: oklch(0.145 0 0);
@@ -85,7 +96,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #818cf8;
+  --primary: #34d399;
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -96,43 +107,63 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: #818cf8;
-  --chart-1: #818cf8;
-  --chart-2: oklch(0.696 0.17 162.48);
+  --ring: #34d399;
+  --chart-1: #34d399;
+  --chart-2: #38bdf8;
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #818cf8;
+  --sidebar-primary: #34d399;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #818cf8;
+  --sidebar-ring: #34d399;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
 }
 
 /* Custom utility classes */
 .scrollbar-hide {
   -ms-overflow-style: none;
-  /* IE and Edge */
   scrollbar-width: none;
-  /* Firefox */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-  /* Chrome, Safari and Opera */
+}
+
+/* Mobile-native safe area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Prevent overscroll on iOS */
+.overscroll-contain {
+  overscroll-behavior: contain;
 }
 
 .line-clamp-2 {
@@ -142,13 +173,18 @@
   -webkit-line-clamp: 2;
 }
 
+/* Smooth native-feel scrolling */
+.overflow-y-auto,
+.overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Custom animations */
 @keyframes fade-in-scale {
   0% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.5);
   }
-
   100% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -156,40 +192,42 @@
 }
 
 @keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
   }
-
   50% {
-    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+    box-shadow: 0 0 40px rgba(5, 150, 105, 0.6);
   }
 }
 
 @keyframes float {
-
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0px);
   }
-
   50% {
     transform: translateY(-10px);
   }
 }
 
 @keyframes sparkle {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0;
     transform: scale(0);
   }
-
   50% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -209,11 +247,18 @@
   animation: sparkle 1.5s ease-in-out infinite;
 }
 
+/* PWA standalone mode adjustments */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* Calendar Dropdown Styles */
 .rdp-dropdown {
   cursor: pointer;
-  border-radius: 4px;
-  padding: 2px 4px;
+  border-radius: 6px;
+  padding: 2px 6px;
   font-size: 0.875rem;
   font-weight: 500;
   transition: background-color 0.2s;
@@ -233,4 +278,99 @@
 
 .rdp-vhidden {
   display: none;
+}
+
+/* Make dialogs feel more native on mobile */
+@media (max-width: 640px) {
+  [data-radix-dialog-content] {
+    border-radius: 1.25rem !important;
+    max-height: 85vh !important;
+  }
+}
+
+/* Smooth card interactions */
+.card-touch {
+  transition: transform 0.15s ease;
+}
+
+.card-touch:active {
+  transform: scale(0.98);
+}
+
+/* Better focus styles for mobile */
+@media (hover: none) {
+  *:focus {
+    outline: none;
+  }
+}
+
+/* Badge improvements */
+.badge-sm {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* Shimmer animation for progress bars */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(5, 150, 105, 0.15);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(5, 150, 105, 0.3);
+}
+
+/* Smooth status badge pulse */
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar, .scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide, .scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

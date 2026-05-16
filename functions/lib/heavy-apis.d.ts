@@ -34,7 +34,7 @@ export declare function bulkCreateLeadsHandler(payload: any, request: CallableRe
     errorCount: number;
     errors: {
         row: number;
-        uniqueLeadId?: string;
+        uniqueLeadId?: number;
         reason: string;
     }[];
 }>;
@@ -134,4 +134,17 @@ export declare function adminUpdateTenantHandler(payload: any, request: Callable
 export declare function syncClaimsHandler(payload: any, request: CallableRequest): Promise<{
     success: boolean;
     claims: Record<string, any>;
+}>;
+export declare function resolveUsernameToEmailHandler(payload: any, _request: any): Promise<{
+    email: any;
+}>;
+export declare function resetTenantDataHandler(payload: any, request: CallableRequest): Promise<{
+    success: boolean;
+    deleted: {
+        leads: number;
+        leadAssignments: number;
+        teams: number;
+        divisions: number;
+        reminders: number;
+    };
 }>;

@@ -30,18 +30,20 @@ logger.success('Firebase app ready');
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 
+
 // Initialize Cloud Firestore.
 // experimentalForceLongPolling forces the SDK to use plain HTTP long-polling
 // instead of the default WebChannel/streaming transport. WebChannel is blocked
 // by many corporate networks, ISPs, browser extensions, and some localhost
 // setups — producing the exact symptom of "reads/writes hang while Auth (REST)
-// works fine". Long-polling is the Firebase team's documented fix.
-// useFetchStreams: false avoids fetch-stream APIs that some proxies break.
+// works fine". experimentalAutoDetectLongPolling lets the SDK pick the best
+// transport automatically (WebChannel when available, long-polling as fallback).
+// Forcing long-polling via experimentalForceLongPolling caused out-of-order
+// watch stream messages which triggered INTERNAL ASSERTION FAILED (ve:-1).
 export const db = (() => {
   try {
     return initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-      useFetchStreams: false,
+      experimentalAutoDetectLongPolling: true,
     } as any);
   } catch {
     // Already initialized (e.g. HMR) — return the existing instance.

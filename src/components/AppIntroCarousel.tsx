@@ -40,7 +40,7 @@ export function AppIntroCarousel({ onComplete, onSkip }: AppIntroCarouselProps) 
     },
     {
       title: "Powerful Tracking",
-      subtitle: "Leads, Teams & Divisions",
+      subtitle: "Leads, Teams & Areas",
       description: "Track every lead from first contact to enrollment. Assign PROs, manage teams, set reminders, and get real-time status updates with GPS validation.",
       icon: Users,
       buttonText: "Explore",

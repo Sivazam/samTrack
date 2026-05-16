@@ -33,6 +33,8 @@ const CRITICAL_ACTIONS = new Set([
   'adminCreateTenant', 'adminUpdateTenant',
   // Claims sync
   'syncClaims',
+  // Username resolution (unauthenticated)
+  'resolveUsernameToEmail',
 ]);
 
 // Notification functions → bundled into notificationApi (Gen2)
@@ -88,6 +90,7 @@ export async function createUserViaCloudFunction(data: {
   teamId?: string;
   assignedDivisionIds?: string[];
   phone?: string;
+  tenantId?: string; // For SUPER_ADMIN to create users in a specific tenant
 }): Promise<CloudFunctionResponse> {
   return callCloudFunction('createUser', data);
 }
@@ -130,7 +133,7 @@ export async function manageTeamViaCloudFunction(data: {
 // ═══════════════════════════════════════════════════════════════
 
 export async function createLeadViaCloudFunction(data: {
-  uniqueLeadId: string;
+  uniqueLeadId: number;
   parentName: string;
   studentName: string;
   parentPhone?: string;
@@ -317,4 +320,15 @@ export function areCloudFunctionsAvailable(): boolean {
  */
 export async function syncClaimsViaCloudFunction(): Promise<CloudFunctionResponse> {
   return callCloudFunction('syncClaims', {});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USERNAME RESOLUTION (unauthenticated — used during login)
+// ═══════════════════════════════════════════════════════════════
+
+export async function resolveUsernameToEmailViaCloudFunction(data: {
+  username: string;
+  tenantId?: string;
+}): Promise<{ email?: string }> {
+  return callCloudFunction('resolveUsernameToEmail', data);
 }

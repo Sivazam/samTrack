@@ -75,7 +75,7 @@ export function formatPaymentMethod(method: string | undefined | null): string {
 export function getPaymentMethodColor(method: string | undefined | null): string {
   switch (method) {
     case 'CASH': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    case 'UPI': return 'bg-violet-50 text-violet-700 border-violet-200';
+    case 'UPI': return 'bg-teal-50 text-teal-700 border-teal-200';
     case 'CHEQUE': return 'bg-amber-50 text-amber-700 border-amber-200';
     case 'BANK_TRANSFER': return 'bg-sky-50 text-sky-700 border-sky-200';
     default: return '';
@@ -88,7 +88,7 @@ export function getPaymentMethodColor(method: string | undefined | null): string
 export function getPaymentMethodRowBg(method: string | undefined | null): string {
   switch (method) {
     case 'CASH': return 'bg-emerald-100/80';
-    case 'UPI': return 'bg-violet-100/80';
+    case 'UPI': return 'bg-teal-100/80';
     case 'CHEQUE': return 'bg-amber-100/80';
     case 'BANK_TRANSFER': return 'bg-sky-100/80';
     default: return '';
@@ -98,7 +98,7 @@ export function getPaymentMethodRowBg(method: string | undefined | null): string
 /** Payment method legend entries for UI display */
 export const PAYMENT_METHOD_LEGEND = [
   { method: 'CASH', label: 'Cash', dot: 'bg-emerald-400' },
-  { method: 'UPI', label: 'UPI', dot: 'bg-violet-400' },
+  { method: 'UPI', label: 'UPI', dot: 'bg-teal-400' },
   { method: 'CHEQUE', label: 'Cheque', dot: 'bg-amber-400' },
   { method: 'BANK_TRANSFER', label: 'NEFT/RTGS', dot: 'bg-sky-400' },
 ] as const;

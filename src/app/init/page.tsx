@@ -36,12 +36,12 @@ const DEFAULT_STATUS_OPTIONS = [
   { code: 'WAITING_EAMCET', label: 'Waiting EAMCET', color: '#3b82f6', isTerminal: false, order: 1, active: true },
   { code: 'WAITING_NEET', label: 'Waiting NEET', color: '#8b5cf6', isTerminal: false, order: 2, active: true },
   { code: 'WILLING_DEGREE', label: 'Willing Degree', color: '#22c55e', isTerminal: false, order: 3, active: true },
-  { code: 'NOT_INTERESTED_DEGREE', label: 'Not Interested Degree', color: '#ef4444', isTerminal: false, order: 4, active: true },
+  { code: 'NOT_INTERESTED_DEGREE', label: 'Not Willing - Degree', color: '#dc2626', isTerminal: true, order: 4, active: true },
   { code: 'WILLING_SAMHITHA', label: 'Willing Samhitha', color: '#10b981', isTerminal: false, order: 5, active: true },
   { code: 'WILLING_OTHER_COLLEGE', label: 'Willing Other College', color: '#f59e0b', isTerminal: false, order: 6, active: true },
   { code: 'JOINED_SAMHITHA', label: 'Joined Samhitha', color: '#16a34a', isTerminal: true, order: 7, active: true },
   { code: 'JOINED_OTHER', label: 'Joined Other', color: '#f97316', isTerminal: true, order: 8, active: true },
-  { code: 'NOT_INTERESTED_SAMHITHA', label: 'Not Interested Samhitha', color: '#dc2626', isTerminal: true, order: 9, active: true },
+  { code: 'NOT_INTERESTED_SAMHITHA', label: 'Not Willing - Samhitha', color: '#dc2626', isTerminal: true, order: 9, active: true },
   { code: 'NOT_DECIDED', label: 'Not Decided', color: '#6b7280', isTerminal: false, order: 10, active: true },
   { code: 'PHONE_UNREACHABLE', label: 'Phone Unreachable', color: '#9ca3af', isTerminal: false, order: 11, active: true },
   { code: 'NOT_ANSWERING', label: 'Not Answering', color: '#78716c', isTerminal: false, order: 12, active: true },
@@ -276,17 +276,17 @@ export default function InitPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/30 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-teal-50/20 to-sky-50/30 relative overflow-hidden">
       {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-indigo-100/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-violet-100/30 rounded-full blur-3xl" />
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-100/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-sky-100/30 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Header */}
         <div className="text-center space-y-3">
-          <div className="mx-auto w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-indigo-300/30">
+          <div className="mx-auto w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-emerald-300/30">
             <Image
               src="/logoMain.png"
               alt="Samhitha"
@@ -298,7 +298,7 @@ export default function InitPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-800">Initial Setup</h1>
-            <p className="text-xs text-indigo-500 font-semibold tracking-[0.2em] uppercase mt-0.5">
+            <p className="text-xs text-emerald-500 font-semibold tracking-[0.2em] uppercase mt-0.5">
               Create Super Admin Account
             </p>
           </div>
@@ -308,9 +308,9 @@ export default function InitPage() {
         </div>
 
         {/* Form Card */}
-        <Card className="shadow-xl border-indigo-100/50 bg-white/80 backdrop-blur-sm">
+        <Card className="shadow-xl border-emerald-100/50 bg-white/80 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-indigo-600">
+            <div className="flex items-center gap-2 text-emerald-600">
               <Shield className="h-4 w-4" />
               <span className="text-xs font-semibold uppercase tracking-wider">Super Admin Registration</span>
             </div>
@@ -323,7 +323,7 @@ export default function InitPage() {
                   value={formData.displayName}
                   onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="e.g. Ravi Kumar"
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                 />
               </div>
@@ -334,7 +334,7 @@ export default function InitPage() {
                   value={formData.username}
                   onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))}
                   placeholder="lowercase, 3-30 chars"
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                   minLength={3}
                   maxLength={30}
@@ -348,7 +348,7 @@ export default function InitPage() {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="superadmin@samhitha.edu"
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                 />
               </div>
@@ -360,7 +360,7 @@ export default function InitPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="+91 98765 43210"
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                 />
               </div>
 
@@ -370,7 +370,7 @@ export default function InitPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                   minLength={6}
                 />
@@ -382,7 +382,7 @@ export default function InitPage() {
                   type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                 />
               </div>
@@ -394,7 +394,7 @@ export default function InitPage() {
                   value={formData.secretCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, secretCode: e.target.value }))}
                   placeholder="Enter the initialization secret"
-                  className="border-indigo-100 focus:border-indigo-400"
+                  className="border-emerald-100 focus:border-emerald-400"
                   required
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Contact the developer if you don&apos;t have this code</p>
@@ -414,7 +414,7 @@ export default function InitPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-medium shadow-lg shadow-indigo-200/50"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium shadow-lg shadow-emerald-200/50"
               >
                 {loading ? (
                   <>
@@ -437,7 +437,7 @@ export default function InitPage() {
           <p className="text-[10px] text-slate-400">
             After creating the SUPER_ADMIN, you&apos;ll be redirected to the login page.
           </p>
-          <a href="/login" className="text-xs text-indigo-600 hover:text-indigo-700 underline">
+          <a href="/login" className="text-xs text-emerald-600 hover:text-emerald-700 underline">
             Already have an account? Sign in
           </a>
         </div>

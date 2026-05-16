@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 const db = admin.firestore();
@@ -63,10 +63,10 @@ export const processReminders = (functions as any)
     return null;
   });
 
-// Process date-only reminders daily at 9 AM IST
+// Process date-only reminders daily at 10 AM IST
 export const processDailyReminders = (functions as any)
   .region('asia-south1')
-  .pubsub.schedule('0 9 * * *')
+  .pubsub.schedule('0 10 * * *')
   .timeZone('Asia/Kolkata')
   .onRun(async (context: any) => {
     const now = admin.firestore.Timestamp.now();

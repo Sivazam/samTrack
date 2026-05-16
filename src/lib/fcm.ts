@@ -23,7 +23,6 @@ function initializeFirebaseApp() {
   if (!firebaseApp && typeof window !== 'undefined') {
     try {
       firebaseApp = initializeApp(firebaseConfig, 'fcm-app');
-      console.log('✅ Firebase app initialized for FCM');
     } catch (error) {
       console.error('❌ Error initializing Firebase app for FCM:', error);
     }
@@ -40,7 +39,6 @@ export function getMessagingInstance() {
       const app = initializeFirebaseApp();
       if (app) {
         messagingInstance = getMessaging(app);
-        console.log('✅ Firebase Messaging instance created');
       }
     } catch (error) {
       console.error('❌ Error creating Firebase Messaging instance:', error);
@@ -84,12 +82,15 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   }
 
   if (Notification.permission === 'denied') {
-    throw new Error('Notification permission was denied. Please enable it in your browser settings.');
+    // Don't throw — just return 'denied' so callers can handle gracefully.
+    // The getFCMToken() caller will return null, and initializeFCM() will
+    // silently skip FCM setup. No scary console.error needed.
+    return 'denied';
   }
 
   try {
     const permission = await Notification.requestPermission();
-    console.log('🔔 Notification permission:', permission);
+    // Notification permission result (minimal logging)
     return permission;
   } catch (error) {
     console.error('❌ Error requesting notification permission:', error);
@@ -160,7 +161,6 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
   try {
     // Register the unified service worker (handles both PWA caching and FCM)
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('✅ Service worker registered for FCM:', registration.scope);
     return registration;
   } catch (error) {
     console.error('❌ Error registering service worker:', error);
@@ -179,7 +179,11 @@ export async function getFCMToken(): Promise<string | null> {
     }
 
     // Request notification permission first
-    await requestNotificationPermission();
+    const permission = await requestNotificationPermission();
+    if (permission === 'denied') {
+      // User has denied notifications — silently skip, no error needed
+      return null;
+    }
 
     // Register service worker
     const registration = await registerServiceWorker();
@@ -248,14 +252,12 @@ export async function getFCMToken(): Promise<string | null> {
     }
 
     if (token) {
-      console.log('✅ FCM token obtained successfully');
       return token;
     } else {
-      console.warn('⚠️ Failed to get FCM token');
       return null;
     }
   } catch (error) {
-    console.error('❌ Error getting FCM token:', error);
+    console.warn('FCM: getFCMToken failed:', (error as any)?.code || error);
     return null;
   }
 }
@@ -269,7 +271,7 @@ export async function initializeFCM(
 ): Promise<string | null> {
   try {
     if (!auth.currentUser) {
-      console.warn('⚠️ User not authenticated, cannot initialize FCM');
+      // Silently return — user not authenticated yet
       return null;
     }
 
@@ -287,31 +289,22 @@ export async function initializeFCM(
 
     const finalUserId = userId || (finalUserType === 'retailers' ? localStorage.getItem('retailerId') : null) || auth.currentUser.uid;
 
-    console.log('🔧 Initializing FCM:', {
-      uid: auth.currentUser.uid,
-      finalUserId,
-      type: finalUserType
-    });
+    // Logging minimized for cleaner console output
+    // console.log('🔧 Initializing FCM:', { uid: auth.currentUser.uid, finalUserId, type: finalUserType });
 
     // Get FCM token
     let token = await getFCMToken();
 
     if (!token) {
-      console.warn('⚠️ Failed to get FCM token');
+      // Token not available — likely notification permission denied or not supported
+      // This is expected and not an error condition
       return null;
     }
 
     // Use provided userId or fall back to auth.currentUser.uid
     // (Already handled above with finalUserId and finalUserType)
 
-    console.log('🔔 Registering FCM device:', {
-      userId: finalUserId,
-      userType: finalUserType,
-      tokenLength: token.length,
-      tokenPrefix: token.substring(0, 20) + '...',
-      userAgent: navigator.userAgent.substring(0, 50) + '...',
-      caller: new Error().stack?.split('\n')[2]?.trim() // Add caller info
-    });
+    // Logging minimized for cleaner console
 
     // Validate that the user document exists before trying to update it
     const { doc, getDoc, updateDoc, setDoc, arrayUnion, Timestamp } = await import('firebase/firestore');
@@ -321,8 +314,8 @@ export async function initializeFCM(
     const userDoc = await getDoc(userRef);
 
     if (!userDoc.exists()) {
-      console.warn(`⚠️ User document not found in ${userType} collection, skipping FCM registration for:`, finalUserId);
-      // Store token locally but don't try to update non-existent document
+      // User doc not yet created (e.g. claims sync still in progress)
+      // Store token locally and return — will be registered on next visit
       storeCurrentDeviceToken(token);
       return token;
     }
@@ -339,7 +332,7 @@ export async function initializeFCM(
     // Token is valid (getToken succeeded, possibly after IDB-clear retry) but not yet
     // registered in the backend. Proceed directly to registration — no need to call
     // deleteToken() which would invalidate the valid token we just obtained.
-    console.log('📝 Registering new FCM token with backend...');
+    // Registering new token with Firestore user doc
 
     // Register new token with backend
     try {
@@ -349,7 +342,7 @@ export async function initializeFCM(
       const now = Timestamp.now();
       const thirtyDaysAgoMs = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-      console.log(`🧹 Processing ${fcmDevices.length} devices for ${finalUserId}...`);
+      // Processing device list for cleanup
 
       // 1. DEDUPLICATE AND CLEANUP
       // Deduplicate by DEVICE ID — each physical device should have exactly ONE entry
@@ -464,7 +457,7 @@ export async function initializeFCM(
         updatedAt: now
       });
 
-      console.log(`✅ FCM device list updated (${fcmDevices.length} -> ${updatedDevices.length})`);
+      // FCM device list updated successfully
 
       // NOTE: API backup call removed — it used a different deviceId algorithm
       // (hash of token:userAgent) than the direct write (localStorage random hash),
@@ -482,7 +475,7 @@ export async function initializeFCM(
 
       return token;
     } catch (backendError) {
-      console.error('❌ Error storing FCM token in user document:', backendError);
+      console.warn('FCM: Error storing token (non-critical):', (backendError as any)?.code || backendError);
 
       // Still store the token locally even if backend registration fails
       storeCurrentDeviceToken(token);
@@ -493,7 +486,8 @@ export async function initializeFCM(
       return token;
     }
   } catch (error) {
-    console.error('❌ Error initializing FCM:', error);
+    // Non-critical: FCM failure should never block the app
+    console.warn('FCM init skipped:', (error as any)?.code || error);
     return null;
   }
 }

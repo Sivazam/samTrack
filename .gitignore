@@ -51,3 +51,5 @@ test
 prompt
 
 server.log
+# Local-only Vercel env values (never commit)
+.vercel-env-local/

@@ -32,8 +32,8 @@ const helpCategories = [
     id: 'getting-started',
     title: 'Getting Started',
     icon: BookOpen,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
     description: 'Learn the basics and set up your account',
     articles: [
       { title: 'Creating Your Account', icon: Users, time: '5 min read' },
@@ -60,8 +60,8 @@ const helpCategories = [
     id: 'technical',
     title: 'Technical Support',
     icon: Settings,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-50',
     description: 'Technical issues and troubleshooting',
     articles: [
       { title: 'Login Problems', icon: Users, time: '4 min read' },
@@ -182,7 +182,7 @@ export default function HelpCenterPage() {
               <Link href="/faq" className="text-gray-600 hover:text-gray-900">FAQ</Link>
               <Link href="/privacy-policy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link>
               <Link href="/terms-of-use" className="text-gray-600 hover:text-gray-900">Terms of Use</Link>
-              <Link href="/help-center" className="text-blue-600 font-medium">Help Center</Link>
+              <Link href="/help-center" className="text-emerald-600 font-medium">Help Center</Link>
               <Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link>
             </nav>
           </div>
@@ -190,11 +190,11 @@ export default function HelpCenterPage() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <HelpCircle className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-4xl font-bold mb-4">Help Center</h1>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-emerald-100 mb-8">
             Find answers, tutorials, and support resources to make the most of Samhitha.
           </p>
 
@@ -218,12 +218,12 @@ export default function HelpCenterPage() {
           <div className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
             <div className="flex items-center space-x-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <MessageCircle className="h-6 w-6 text-blue-600" />
+                <MessageCircle className="h-6 w-6 text-emerald-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Live Chat</h3>
             </div>
             <p className="text-gray-600 mb-4">Chat with our support team in real-time</p>
-            <button className="text-blue-600 font-medium hover:text-blue-700">
+            <button className="text-emerald-600 font-medium hover:text-emerald-700">
               Start Chat →
             </button>
           </div>
@@ -236,20 +236,20 @@ export default function HelpCenterPage() {
               <h3 className="text-lg font-semibold text-gray-900">Phone Support</h3>
             </div>
             <p className="text-gray-600 mb-4">Call us for immediate assistance</p>
-            <a href="tel:9014882779" className="text-blue-600 font-medium hover:text-blue-700">
+            <a href="tel:9014882779" className="text-emerald-600 font-medium hover:text-emerald-700">
               Call Now →
             </a>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Mail className="h-6 w-6 text-purple-600" />
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <Mail className="h-6 w-6 text-teal-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Email Support</h3>
             </div>
             <p className="text-gray-600 mb-4">Get detailed help via email</p>
-            <a href="mailto:support@samhitha.com" className="text-blue-600 font-medium hover:text-blue-700">
+            <a href="mailto:support@samhitha.com" className="text-emerald-600 font-medium hover:text-emerald-700">
               Send Email →
             </a>
           </div>
@@ -316,7 +316,7 @@ export default function HelpCenterPage() {
               <div key={index} className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-video bg-gray-200 relative">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center">
                       <Play className="h-6 w-6 text-white" />
                     </div>
                   </div>
@@ -331,7 +331,7 @@ export default function HelpCenterPage() {
                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                       {video.level}
                     </span>
-                    <button className="text-blue-600 text-sm hover:text-blue-700">
+                    <button className="text-emerald-600 text-sm hover:text-emerald-700">
                       Watch →
                     </button>
                   </div>
@@ -357,7 +357,7 @@ export default function HelpCenterPage() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">{resource.description}</p>
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                <button className="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center space-x-2">
                   <Download className="h-4 w-4" />
                   <span>Download</span>
                 </button>
@@ -367,8 +367,8 @@ export default function HelpCenterPage() {
         </div>
 
         {/* Support Hours */}
-        <div className="bg-blue-50 rounded-lg p-8 text-center">
-          <Clock className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+        <div className="bg-emerald-50 rounded-lg p-8 text-center">
+          <Clock className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Support Hours</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-2xl mx-auto">
             <div>

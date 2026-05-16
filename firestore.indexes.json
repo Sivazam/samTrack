@@ -62,6 +62,14 @@
       ]
     },
     {
+      "collectionGroup": "reminders",
+      "fields": [
+        { "fieldPath": "recipientUids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "dueAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "statusUpdates",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -87,6 +95,13 @@
       ]
     },
     {
+      "collectionGroup": "users",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "teams",
       "fields": [
         { "fieldPath": "tenantId", "order": "ASCENDING" },
@@ -106,6 +121,22 @@
         { "fieldPath": "tenantId", "order": "ASCENDING" },
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "lastStatusCode", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "divisionId", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reminders",
+      "fields": [
+        { "fieldPath": "recipientUids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "dueAt", "order": "ASCENDING" }
       ]
     }
   ],

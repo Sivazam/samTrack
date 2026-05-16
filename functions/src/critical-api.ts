@@ -31,6 +31,8 @@ import {
     adminCreateTenantHandler,
     adminUpdateTenantHandler,
     syncClaimsHandler,
+    resolveUsernameToEmailHandler,
+    resetTenantDataHandler,
 } from './heavy-apis';
 
 // Handler registry — maps action names to handler functions
@@ -61,6 +63,10 @@ const HANDLERS: Record<string, (data: any, context: any) => Promise<any>> = {
     adminCreateTenant: adminCreateTenantHandler,
     adminUpdateTenant: adminUpdateTenantHandler,
     syncClaims: syncClaimsHandler,
+    // ── Username Resolution (unauthenticated) ──
+    resolveUsernameToEmail: resolveUsernameToEmailHandler,
+    // ── Admin / Demo Reset ──
+    resetTenantData: resetTenantDataHandler,
 };
 
 /**

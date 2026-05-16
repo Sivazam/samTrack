@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cleanupStaleReminders = exports.processDailyReminders = exports.processReminders = void 0;
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const db = admin.firestore();
 const messaging = admin.messaging();
@@ -93,10 +93,10 @@ exports.processReminders = functions
     }
     return null;
 });
-// Process date-only reminders daily at 9 AM IST
+// Process date-only reminders daily at 10 AM IST
 exports.processDailyReminders = functions
     .region('asia-south1')
-    .pubsub.schedule('0 9 * * *')
+    .pubsub.schedule('0 10 * * *')
     .timeZone('Asia/Kolkata')
     .onRun(async (context) => {
     const now = admin.firestore.Timestamp.now();

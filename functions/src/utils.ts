@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 
 // ─── Auth Verification ───────────────────────────────────────────────────
 export async function verifyAuthToken(
@@ -138,10 +138,9 @@ export function validateUsername(username: string): string | null {
 }
 
 // ─── Lead ID Validation ─────────────────────────────────────────────────
-export function validateUniqueLeadId(id: string): string | null {
-  if (!id || id.trim().length === 0) return 'Lead ID cannot be empty';
-  if (id.length > 64) return 'Lead ID must be 64 characters or fewer';
-  if (/\s/.test(id)) return 'Lead ID cannot contain whitespace';
+export function validateUniqueLeadId(id: number | string): string | null {
+  const n = Number(id);
+  if (!Number.isInteger(n) || n <= 0) return 'Lead ID must be a positive whole number';
   return null;
 }
 
@@ -149,14 +148,13 @@ export function validateUniqueLeadId(id: string): string | null {
 export function buildLeadAssignmentSearchFields(lead: any, division?: any): Record<string, any> {
   const parentName = (lead.parentName || '').trim();
   const studentName = (lead.studentName || '').trim();
-  const uid = String(lead.uniqueLeadId || '').trim();
+  const uid = Number(lead.uniqueLeadId);
   return {
     parentName,
     parentName_lowercase: parentName.toLowerCase(),
     studentName,
     studentName_lowercase: studentName.toLowerCase(),
     uniqueLeadId: uid,
-    uniqueLeadId_lowercase: uid.toLowerCase(),
     parentPhone: cleanPhoneStr(lead.parentPhone),
     studentPhone: cleanPhoneStr(lead.studentPhone),
     divisionId: lead.divisionId || '',

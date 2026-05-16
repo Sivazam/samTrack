@@ -11,7 +11,7 @@ const testimonials = [
     quote:
       'Before Samhitha, we had no idea how many follow-ups our PROs missed. Now I see every update live on my dashboard. Admissions are up 40%.',
     initials: 'RK',
-    gradient: 'from-[#0d7c3f] to-indigo-600',
+    gradient: 'from-[#0d7c3f] to-blue-600',
   },
   {
     name: 'Priya Sharma',
@@ -19,7 +19,7 @@ const testimonials = [
     quote:
       'We used to lose track of leads all the time. With GPS verification and status tracking, every single lead is accounted for. No more missed enrollments.',
     initials: 'PS',
-    gradient: 'from-purple-500 to-pink-600',
+    gradient: 'from-sky-500 to-blue-600',
   },
   {
     name: 'Amit Patel',

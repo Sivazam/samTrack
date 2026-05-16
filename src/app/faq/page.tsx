@@ -13,8 +13,8 @@ const faqCategories = [
     id: 'general',
     title: 'General Questions',
     icon: HelpCircle,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
     faqs: [
       {
         question: 'What is Samhitha?',
@@ -63,8 +63,8 @@ const faqCategories = [
     id: 'payments',
     title: 'Status Updates & Billing',
     icon: CreditCard,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-50',
     faqs: [
       {
         question: 'How are status updates processed in Samhitha?',
@@ -168,7 +168,7 @@ export default function FAQPage() {
               </Link>
             </div>
             <nav className="hidden md:flex space-x-8">
-              <Link href="/faq" className="text-blue-600 font-medium">FAQ</Link>
+              <Link href="/faq" className="text-emerald-600 font-medium">FAQ</Link>
               <Link href="/privacy-policy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link>
               <Link href="/terms-of-use" className="text-gray-600 hover:text-gray-900">Terms of Use</Link>
               <Link href="/help-center" className="text-gray-600 hover:text-gray-900">Help Center</Link>
@@ -179,11 +179,11 @@ export default function FAQPage() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <HelpCircle className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-4xl font-bold mb-4">Frequently Asked Questions</h1>
-          <p className="text-xl text-blue-100">
+          <p className="text-xl text-emerald-100">
             Find answers to common questions about Samhitha and how it can help streamline your college admissions tracking.
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function FAQPage() {
                         const isFAQOpen = openFAQ === faqId;
 
                         return (
-                          <div key={index} className="border-l-4 border-blue-200 pl-4">
+                          <div key={index} className="border-l-4 border-emerald-200 pl-4">
                             <button
                               onClick={() => toggleFAQ(faqId)}
                               className="w-full text-left py-2 flex items-center justify-between"
@@ -252,8 +252,8 @@ export default function FAQPage() {
         </div>
 
         {/* Additional Help Section */}
-        <div className="mt-12 bg-blue-50 rounded-lg p-8 text-center">
-          <Globe className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+        <div className="mt-12 bg-emerald-50 rounded-lg p-8 text-center">
+          <Globe className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Still have questions?</h3>
           <p className="text-gray-600 mb-6">
             Can't find the answer you're looking for? Our support team is here to help.
@@ -261,13 +261,13 @@ export default function FAQPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/help-center"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
             >
               Visit Help Center
             </Link>
             <a
               href="tel:9014882779"
-              className="inline-flex items-center px-6 py-3 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-white text-emerald-600 border border-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors"
             >
               Call Support
             </a>

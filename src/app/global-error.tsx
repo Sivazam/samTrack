@@ -35,12 +35,12 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/30 p-4">
-          <div className="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 text-center border border-indigo-100/50">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-emerald-50/30 to-sky-50/30 p-4">
+          <div className="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 text-center border border-emerald-100/50">
             <div className="flex justify-center mb-6">
-              <div className={`p-4 rounded-2xl ${isOffline ? 'bg-indigo-50' : 'bg-red-50'}`}>
+              <div className={`p-4 rounded-2xl ${isOffline ? 'bg-sky-50' : 'bg-red-50'}`}>
                 {isOffline ? (
-                  <WifiOff className="w-8 h-8 text-indigo-600" />
+                  <WifiOff className="w-8 h-8 text-sky-600" />
                 ) : (
                   <AlertTriangle className="w-8 h-8 text-red-500" />
                 )}
@@ -68,7 +68,7 @@ export default function GlobalError({
               onClick={handleReload}
               className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all flex items-center justify-center gap-2 shadow-lg ${
                 isOffline
-                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-indigo-200/50'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-200/50'
                   : 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-red-200/50'
               }`}
             >

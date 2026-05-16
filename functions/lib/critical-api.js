@@ -44,6 +44,10 @@ const HANDLERS = {
     adminCreateTenant: heavy_apis_1.adminCreateTenantHandler,
     adminUpdateTenant: heavy_apis_1.adminUpdateTenantHandler,
     syncClaims: heavy_apis_1.syncClaimsHandler,
+    // ── Username Resolution (unauthenticated) ──
+    resolveUsernameToEmail: heavy_apis_1.resolveUsernameToEmailHandler,
+    // ── Admin / Demo Reset ──
+    resetTenantData: heavy_apis_1.resetTenantDataHandler,
 };
 /**
  * Single Gen2 Cloud Function that routes to the correct handler.

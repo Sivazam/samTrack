@@ -132,7 +132,7 @@ messaging.onBackgroundMessage(async (payload) => {
   const notificationTitle = data.title || payload.notification?.title || 'Samhitha Notification';
   const notificationOptions = {
     body: data.body || payload.notification?.body || 'You have a new notification',
-    icon: data.icon || '/notification-large-192x192.png',
+    icon: data.icon || '/logoMain.png',
     badge: data.badge || '/badge-72x72.png',
     tag,
     requireInteraction: data.requireInteraction === 'true',
@@ -220,7 +220,7 @@ self.addEventListener('push', function(event) {
     const title = data.title || 'Samhitha Notification';
     const options = {
       body: data.body || 'You have a new notification',
-      icon: data.icon || '/notification-large-192x192.png',
+      icon: data.icon || '/logoMain.png',
       badge: data.badge || '/badge-72x72.png',
       tag: tag,
       requireInteraction: data.requireInteraction === 'true',
@@ -233,10 +233,10 @@ self.addEventListener('push', function(event) {
 });
 
 
-const CACHE_VERSION = 'samhitha-v3-2.1.2';
+const CACHE_VERSION = 'samhitha-v4-2.2.0';
 const CACHE_NAME = CACHE_VERSION;
-const STATIC_CACHE_NAME = 'samhitha-static-v5';
-const RUNTIME_CACHE_NAME = 'samhitha-runtime-v5';
+const STATIC_CACHE_NAME = 'samhitha-static-v6';
+const RUNTIME_CACHE_NAME = 'samhitha-runtime-v6';
 const MAX_RUNTIME_ENTRIES = 150; // Cap runtime cache to prevent unbounded PWA storage growth
 
 // Trim a cache to a maximum number of entries (evicts oldest first)
@@ -366,24 +366,48 @@ self.addEventListener('notificationclick', event => {
 
   // Handle REMINDER notification actions
   if (event.action === 'snooze') {
-    // Queue snooze request via background fetch
+    // Post message to client window — SW can't call Firebase CF directly
     event.waitUntil(
-      fetch('/api/fcm/snooze-reminder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reminderId: data.reminderId })
-      }).catch(() => {})
+      (async () => {
+        try {
+          const authState = await getPersistedAuthState();
+          if (!authState?.value) return;
+          // Post message to client so it can call manageReminder CF action
+          const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+          if (clients.length > 0) {
+            clients[0].postMessage({
+              type: 'REMINDER_ACTION',
+              action: 'snooze',
+              reminderId: data.reminderId,
+              snoozeDuration: '1h'
+            });
+          }
+        } catch (e) {
+          console.error('SW snooze failed:', e);
+        }
+      })()
     );
     event.notification.close();
     return;
   }
   if (event.action === 'done') {
     event.waitUntil(
-      fetch('/api/fcm/complete-reminder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reminderId: data.reminderId })
-      }).catch(() => {})
+      (async () => {
+        try {
+          const authState = await getPersistedAuthState();
+          if (!authState?.value) return;
+          const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+          if (clients.length > 0) {
+            clients[0].postMessage({
+              type: 'REMINDER_ACTION',
+              action: 'complete',
+              reminderId: data.reminderId
+            });
+          }
+        } catch (e) {
+          console.error('SW done failed:', e);
+        }
+      })()
     );
     event.notification.close();
     return;
@@ -451,8 +475,8 @@ self.addEventListener('message', event => {
     event.waitUntil(
       self.registration.showNotification('Test Notification', {
         body: 'This is a test notification from Samhitha',
-        icon: '/icon-192x192.png',
-        badge: '/icon-96x96.png',
+        icon: '/logoMain.png',
+        badge: '/badge-72x72.png',
         tag: 'test-notification'
       })
     );
@@ -466,8 +490,8 @@ self.addEventListener('message', event => {
     // Enhanced notification options for mobile
     const notificationOptions = {
       body: payload.body,
-      icon: payload.icon || '/icon-192x192.png',
-      badge: payload.badge || '/icon-96x96.png',
+      icon: payload.icon || '/logoMain.png',
+      badge: payload.badge || '/badge-72x72.png',
       tag: payload.tag,
       requireInteraction: payload.requireInteraction || false,
       actions: payload.actions || [],
@@ -546,7 +570,7 @@ self.addEventListener('fetch', event => {
   if (
     url.hostname.includes('firestore.googleapis.com') ||
     url.hostname.includes('firebaseio.com') ||
-    url.hostname.includes('identitytoolkit.googleapis.com')
+    url.hostname.includes('identitytoolkit.googleapis.com') || url.hostname.includes('securetoken.googleapis.com') || url.hostname.includes('firebaseapp.com') || url.hostname.includes('googleapis.com')
   ) {
     return;
   }

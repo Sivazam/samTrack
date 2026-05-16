@@ -29,10 +29,10 @@ const roles = [
     title: 'Super Admin',
     description:
       'Oversee all colleges, manage subscriptions, and monitor platform-wide analytics.',
-    bgColor: 'bg-purple-50',
-    iconColor: 'text-purple-600',
-    borderColor: 'border-purple-100',
-    hoverShadow: 'hover:shadow-purple-100/50',
+    bgColor: 'bg-teal-50',
+    iconColor: 'text-teal-600',
+    borderColor: 'border-teal-100',
+    hoverShadow: 'hover:shadow-teal-100/50',
   },
 ];
 

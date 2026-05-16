@@ -7,4 +7,4 @@
  * The router extracts `action` and `payload`, then dispatches to the handler.
  * Auth context is forwarded as-is from the onCall request.
  */
-export declare const criticalApi: import("firebase-functions/v2/https").CallableFunction<any, Promise<any>>;
+export declare const criticalApi: import("firebase-functions/v2/https").CallableFunction<any, Promise<any>, unknown>;

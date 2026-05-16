@@ -39,13 +39,16 @@ export interface Tenant extends BaseDocument {
   fcmDevices?: FCMDevice[];
 }
 
-// ===== Division (renamed from Area) =====
-export interface Division extends BaseDocument {
+// ===== Area (stored as 'divisions' collection in Firestore) =====
+export interface Area extends BaseDocument {
   name: string;
   code: string;  // e.g., "RJY" - short code, unique per tenant
   description?: string;
   active: boolean;
 }
+
+// Backward-compatible alias
+export type Division = Area;
 
 // ===== Team =====
 export interface Team extends BaseDocument {
@@ -78,8 +81,7 @@ export interface UsernameIndex {
 
 // ===== Lead (replaces Retailer) =====
 export interface Lead extends BaseDocument {
-  uniqueLeadId: string;  // admin-supplied; UNIQUE per tenant
-  uniqueLeadId_lowercase: string;
+  uniqueLeadId: number;  // admin-supplied; UNIQUE per tenant (positive integer)
 
   parentName: string;
   parentName_lowercase: string;
@@ -156,12 +158,14 @@ export interface LeadAssignment extends BaseDocument {
   parentName_lowercase: string;
   studentName: string;
   studentName_lowercase: string;
-  uniqueLeadId: string;
-  uniqueLeadId_lowercase: string;
+  uniqueLeadId: number;
   parentPhone?: string;
   studentPhone?: string;
   // status snapshot for filter:
   lastStatusCode?: string;
+  lastStatusLabel?: string;
+  lastApproachType?: string;
+  joinedCollegeName?: string;
   nextFollowupAt?: Timestamp;
   active: boolean;
 }
@@ -172,7 +176,7 @@ export type ReminderStatus = 'PENDING' | 'SENT' | 'COMPLETED' | 'SNOOZED' | 'CAN
 export interface Reminder extends BaseDocument {
   leadId: string;
   leadDisplayName: string;  // denorm "ParentName / StudentName"
-  uniqueLeadId: string;  // denorm
+  uniqueLeadId: number;  // denorm
   dueAt: Timestamp;
   dueDateOnly: boolean;
   note?: string;
@@ -193,6 +197,8 @@ export interface StatusOption {
   isTerminal: boolean;
   order: number;
   active: boolean;
+  autoReminderDate?: string;   // YYYY-MM-DD — result/event date for auto-reminder
+  autoReminderOffset?: number; // days offset from autoReminderDate (0 = same day)
 }
 
 export interface IntermediateGroup {
@@ -224,7 +230,7 @@ export interface ImportBatch extends BaseDocument {
   totalRows: number;
   successRows: number;
   errorRows: number;
-  errors: Array<{ row: number; uniqueLeadId?: string; reason: string }>;
+  errors: Array<{ row: number; uniqueLeadId?: number; reason: string }>;
   cityFromFilename?: string;
   completedAt?: Timestamp;
 }
@@ -265,6 +271,7 @@ export interface GpsLocation {
   lng: number;
   accuracyMeters: number;
   capturedAt: Date;
+  accuracyWarning?: string;
 }
 
 // ===== Auth Context Types =====
@@ -349,11 +356,14 @@ export interface CreateTeamForm {
   divisionIds: string[];
 }
 
-export interface CreateDivisionForm {
+export interface CreateAreaForm {
   name: string;
   code: string;
   description?: string;
 }
+
+// Backward-compatible alias
+export type CreateDivisionForm = CreateAreaForm;
 
 export interface CreateReminderForm {
   leadId: string;
@@ -390,3 +400,4 @@ export interface CollegeStats {
   userCount: number;
   activeUserCount: number;
 }
+

@@ -14,7 +14,7 @@ import {
 import type {
   Tenant, User, Division, Team, Lead, StatusUpdate,
   LeadAssignment, Reminder, TenantConfig, ImportBatch,
-  TenantStats, TenantDailyStats,
+  TenantStats,
 } from '@/types';
 
 // ─── Tenant Service ─────────────────────────────────────────────
@@ -27,9 +27,17 @@ export const tenantService = {
     const snap = await getDocs(collection(db, COLLECTIONS.TENANTS));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
   },
-  onSnapshot: (callback: (tenants: Tenant[]) => void): Unsubscribe => {
+  onSnapshot: (callback: (tenants: Tenant[]) => void, onError?: (error: any) => void): Unsubscribe => {
     return onSnapshot(collection(db, COLLECTIONS.TENANTS), snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Tenant)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for tenants — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('tenants snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -45,10 +53,18 @@ export const userService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
   },
-  onSnapshotByTenant: (tenantId: string, callback: (users: User[]) => void): Unsubscribe => {
+  onSnapshotByTenant: (tenantId: string, callback: (users: User[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(collection(db, COLLECTIONS.USERS), where('tenantId', '==', tenantId));
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for users — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('users snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -60,10 +76,18 @@ export const divisionService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Division));
   },
-  onSnapshotByTenant: (tenantId: string, callback: (divisions: Division[]) => void): Unsubscribe => {
+  onSnapshotByTenant: (tenantId: string, callback: (divisions: Division[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(collection(db, COLLECTIONS.DIVISIONS), where('tenantId', '==', tenantId), where('active', '==', true));
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Division)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for divisions — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('divisions snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -75,10 +99,18 @@ export const teamService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Team));
   },
-  onSnapshotByTenant: (tenantId: string, callback: (teams: Team[]) => void): Unsubscribe => {
+  onSnapshotByTenant: (tenantId: string, callback: (teams: Team[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(collection(db, COLLECTIONS.TEAMS), where('tenantId', '==', tenantId));
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for teams — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('teams snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -94,15 +126,31 @@ export const leadService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as StatusUpdate));
   },
-  onSnapshot: (leadId: string, callback: (lead: Lead | null) => void): Unsubscribe => {
+  onSnapshot: (leadId: string, callback: (lead: Lead | null) => void, onError?: (error: any) => void): Unsubscribe => {
     return onSnapshot(doc(db, COLLECTIONS.LEADS, leadId), snap => {
       callback(snap.exists() ? { id: snap.id, ...snap.data() } as Lead : null);
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for leads — claims may not be synced yet');
+        callback(null);
+        return;
+      }
+      console.warn('leads snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
-  onStatusUpdates: (leadId: string, callback: (updates: StatusUpdate[]) => void): Unsubscribe => {
+  onStatusUpdates: (leadId: string, callback: (updates: StatusUpdate[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(collection(db, COLLECTIONS.LEADS, leadId, COLLECTIONS.STATUS_UPDATES), orderBy('createdAt', 'desc'));
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as StatusUpdate)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for statusUpdates — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('statusUpdates snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -114,7 +162,7 @@ export const leadAssignmentService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as LeadAssignment));
   },
-  onSnapshotByPRO: (tenantId: string, proUid: string, callback: (assignments: LeadAssignment[]) => void): Unsubscribe => {
+  onSnapshotByPRO: (tenantId: string, proUid: string, callback: (assignments: LeadAssignment[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(
       collection(db, COLLECTIONS.LEAD_ASSIGNMENTS),
       where('tenantId', '==', tenantId),
@@ -123,12 +171,28 @@ export const leadAssignmentService = {
     );
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as LeadAssignment)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for leadAssignments — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('leadAssignments snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
-  onSnapshotByTenant: (tenantId: string, callback: (assignments: LeadAssignment[]) => void): Unsubscribe => {
+  onSnapshotByTenant: (tenantId: string, callback: (assignments: LeadAssignment[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(collection(db, COLLECTIONS.LEAD_ASSIGNMENTS), where('tenantId', '==', tenantId), where('active', '==', true));
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as LeadAssignment)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for leadAssignments — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('leadAssignments snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -140,7 +204,7 @@ export const reminderService = {
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Reminder));
   },
-  onSnapshotByRecipient: (uid: string, callback: (reminders: Reminder[]) => void): Unsubscribe => {
+  onSnapshotByRecipient: (uid: string, callback: (reminders: Reminder[]) => void, onError?: (error: any) => void): Unsubscribe => {
     const q = query(
       collection(db, COLLECTIONS.REMINDERS),
       where('recipientUids', 'array-contains', uid),
@@ -149,6 +213,14 @@ export const reminderService = {
     );
     return onSnapshot(q, snap => {
       callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Reminder)));
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for reminders — claims may not be synced yet');
+        callback([]);
+        return;
+      }
+      console.warn('reminders snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -159,9 +231,17 @@ export const tenantConfigService = {
     const snap = await getDoc(doc(db, COLLECTIONS.TENANT_CONFIG, tenantId));
     return snap.exists() ? snap.data() as TenantConfig : null;
   },
-  onSnapshot: (tenantId: string, callback: (config: TenantConfig | null) => void): Unsubscribe => {
+  onSnapshot: (tenantId: string, callback: (config: TenantConfig | null) => void, onError?: (error: any) => void): Unsubscribe => {
     return onSnapshot(doc(db, COLLECTIONS.TENANT_CONFIG, tenantId), snap => {
       callback(snap.exists() ? snap.data() as TenantConfig : null);
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for tenantConfig — claims may not be synced yet');
+        callback(null);
+        return;
+      }
+      console.warn('tenantConfig snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };
@@ -172,9 +252,17 @@ export const tenantStatsService = {
     const snap = await getDoc(doc(db, COLLECTIONS.TENANT_STATS, tenantId));
     return snap.exists() ? snap.data() as TenantStats : null;
   },
-  onSnapshot: (tenantId: string, callback: (stats: TenantStats | null) => void): Unsubscribe => {
+  onSnapshot: (tenantId: string, callback: (stats: TenantStats | null) => void, onError?: (error: any) => void): Unsubscribe => {
     return onSnapshot(doc(db, COLLECTIONS.TENANT_STATS, tenantId), snap => {
       callback(snap.exists() ? snap.data() as TenantStats : null);
+    }, (error) => {
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        console.warn('Permission denied for tenantStats — claims may not be synced yet');
+        callback(null);
+        return;
+      }
+      console.warn('tenantStats snapshot error:', error.code || error.message);
+      onError?.(error);
     });
   },
 };

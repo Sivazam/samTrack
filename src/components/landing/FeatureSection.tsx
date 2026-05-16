@@ -32,7 +32,7 @@ export function FeatureSection({
       initial={{ opacity: 0, x: imageSide === 'left' ? 40 : -40 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-100px' }}
-      transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98] }}
+      transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98] as const }}
       className="flex flex-col justify-center"
     >
       <span className="inline-block self-start px-3.5 py-1 rounded-full bg-[#0d7c3f]/[0.06] text-[#0d7c3f] text-[11px] font-semibold tracking-[0.12em] uppercase">
@@ -78,7 +78,7 @@ export function FeatureSection({
       initial={{ opacity: 0, x: imageSide === 'left' ? -40 : 40 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-100px' }}
-      transition={{ duration: 0.7, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
+      transition={{ duration: 0.7, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] as const }}
     >
       {imageContent}
     </motion.div>

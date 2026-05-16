@@ -6,9 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { bulkCreateLeadsViaCloudFunction } from '@/lib/cloud-functions';
 import * as XLSX from 'xlsx';
+import { Label } from '@/components/ui/label';
 
 interface BulkImportLeadsProps {
   onClose: () => void;
@@ -45,6 +47,7 @@ export function BulkImportLeads({ onClose }: BulkImportLeadsProps) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateMode, setDuplicateMode] = useState<'skip' | 'error'>('skip');
 
   const handleFile = useCallback((file: File) => {
     setFilename(file.name);
@@ -83,7 +86,7 @@ export function BulkImportLeads({ onClose }: BulkImportLeadsProps) {
       const res = await bulkCreateLeadsViaCloudFunction({
         rows: mappedRows,
         sourceFilename: filename,
-        mode: 'skip',
+        mode: duplicateMode,
       });
       setResult(res);
     } catch (e: any) {
@@ -113,8 +116,23 @@ export function BulkImportLeads({ onClose }: BulkImportLeadsProps) {
 
             {/* Preview */}
             {rows.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-sm font-medium"><FileSpreadsheet className="h-4 w-4 inline mr-1" />{filename} — {rows.length} rows</p>
+
+                {/* Duplicate handling mode */}
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">When duplicate Lead ID found:</p>
+                  <RadioGroup value={duplicateMode} onValueChange={(v) => setDuplicateMode(v as 'skip' | 'error')} className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="skip" id="skip" />
+                      <Label htmlFor="skip" className="text-xs cursor-pointer">Skip duplicates</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="error" id="error" />
+                      <Label htmlFor="error" className="text-xs cursor-pointer">Report as error</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
                 <p className="text-xs text-muted-foreground">Column mapping (auto-detected):</p>
                 <div className="space-y-1">
                   {headers.map(h => (

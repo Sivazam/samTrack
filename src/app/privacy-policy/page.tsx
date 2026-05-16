@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
             </div>
             <nav className="hidden md:flex space-x-8">
               <Link href="/faq" className="text-gray-600 hover:text-gray-900">FAQ</Link>
-              <Link href="/privacy-policy" className="text-blue-600 font-medium">Privacy Policy</Link>
+              <Link href="/privacy-policy" className="text-emerald-600 font-medium">Privacy Policy</Link>
               <Link href="/terms-of-use" className="text-gray-600 hover:text-gray-900">Terms of Use</Link>
               <Link href="/help-center" className="text-gray-600 hover:text-gray-900">Help Center</Link>
               <Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link>
@@ -35,14 +35,14 @@ export default function PrivacyPolicyPage() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Shield className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-4xl font-bold mb-4">Privacy Policy</h1>
-          <p className="text-xl text-blue-100">
+          <p className="text-xl text-emerald-100">
             Your privacy is important to us. This policy explains how we collect, use, and protect your personal information.
           </p>
-          <p className="text-blue-200 mt-2">Last updated: April 2026</p>
+          <p className="text-emerald-200 mt-2">Last updated: April 2026</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
           {/* Introduction */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Eye className="h-6 w-6 mr-3 text-blue-600" />
+              <Eye className="h-6 w-6 mr-3 text-emerald-600" />
               Introduction
             </h2>
             <p className="text-gray-600 leading-relaxed mb-4">
@@ -108,12 +108,12 @@ export default function PrivacyPolicyPage() {
           {/* How We Use Your Information */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Globe className="h-6 w-6 mr-3 text-purple-600" />
+              <Globe className="h-6 w-6 mr-3 text-teal-600" />
               How We Use Your Information
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-emerald-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-2">Service Provision</h3>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• Provide and maintain the Service</li>
@@ -133,7 +133,7 @@ export default function PrivacyPolicyPage() {
                 </ul>
               </div>
 
-              <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="bg-teal-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-2">Security & Compliance</h3>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• Prevent fraud and unauthorized access</li>
@@ -169,7 +169,7 @@ export default function PrivacyPolicyPage() {
 
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full mt-2 flex-shrink-0"></div>
                   <div>
                     <h4 className="font-semibold text-gray-900">With Your Consent</h4>
                     <p className="text-sm text-gray-600">We share information when you explicitly authorize us to do so.</p>
@@ -177,7 +177,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full mt-2 flex-shrink-0"></div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Service Providers</h4>
                     <p className="text-sm text-gray-600">We share data with trusted third-party service providers who assist in operating our Service, subject to strict confidentiality agreements.</p>
@@ -185,7 +185,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full mt-2 flex-shrink-0"></div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Legal Requirements</h4>
                     <p className="text-sm text-gray-600">We may disclose information when required by law, regulation, or legal process.</p>
@@ -193,7 +193,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full mt-2 flex-shrink-0"></div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Business Transfers</h4>
                     <p className="text-sm text-gray-600">Information may be transferred in connection with a merger, acquisition, or sale of company assets.</p>
@@ -206,7 +206,7 @@ export default function PrivacyPolicyPage() {
           {/* Data Security */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Shield className="h-6 w-6 mr-3 text-indigo-600" />
+              <Shield className="h-6 w-6 mr-3 text-blue-600" />
               Data Security
             </h2>
 
@@ -320,7 +320,7 @@ export default function PrivacyPolicyPage() {
           {/* Contact Information */}
           <section className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Phone className="h-6 w-6 mr-3 text-blue-600" />
+              <Phone className="h-6 w-6 mr-3 text-emerald-600" />
               Contact Us
             </h2>
 
@@ -331,7 +331,7 @@ export default function PrivacyPolicyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center space-x-3">
-                  <Mail className="h-5 w-5 text-blue-600" />
+                  <Mail className="h-5 w-5 text-emerald-600" />
                   <div>
                     <p className="font-semibold text-gray-900">Email</p>
                     <p className="text-gray-600">privacy@samhitha.com</p>
@@ -339,7 +339,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <Phone className="h-5 w-5 text-blue-600" />
+                  <Phone className="h-5 w-5 text-emerald-600" />
                   <div>
                     <p className="font-semibold text-gray-900">Phone</p>
                     <p className="text-gray-600">+91 9014882779</p>
@@ -347,7 +347,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <MapPin className="h-5 w-5 text-blue-600" />
+                  <MapPin className="h-5 w-5 text-emerald-600" />
                   <div>
                     <p className="font-semibold text-gray-900">Address</p>
                     <p className="text-gray-600">123 Business Park, Chennai, India</p>
@@ -355,7 +355,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <Globe className="h-5 w-5 text-blue-600" />
+                  <Globe className="h-5 w-5 text-emerald-600" />
                   <div>
                     <p className="font-semibold text-gray-900">Website</p>
                     <p className="text-gray-600">www.samhitha.com</p>

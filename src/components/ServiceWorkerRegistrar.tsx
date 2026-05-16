@@ -64,12 +64,34 @@ export function ServiceWorkerRegistrar() {
     // Clear problematic version storage to prevent reload loops
     localStorage.removeItem('Samhitha-version');
 
-    // Listen for cache cleared messages from service worker
+    // Listen for messages from service worker (cache cleared, reminder actions)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
+      navigator.serviceWorker.addEventListener('message', async (event) => {
         if (event.data && event.data.type === 'CACHE_CLEARED') {
           console.log('Cache cleared by service worker');
           window.location.reload();
+        }
+        // Handle reminder actions from SW notification buttons (snooze/done)
+        if (event.data && event.data.type === 'REMINDER_ACTION') {
+          try {
+            const { manageReminderViaCloudFunction } = await import('@/lib/cloud-functions');
+            if (event.data.action === 'snooze') {
+              await manageReminderViaCloudFunction({
+                subAction: 'snooze',
+                reminderId: event.data.reminderId,
+                snoozeDuration: event.data.snoozeDuration || '1h',
+              });
+              console.log('SW reminder snoozed:', event.data.reminderId);
+            } else if (event.data.action === 'complete') {
+              await manageReminderViaCloudFunction({
+                subAction: 'complete',
+                reminderId: event.data.reminderId,
+              });
+              console.log('SW reminder completed:', event.data.reminderId);
+            }
+          } catch (e) {
+            console.error('Failed to handle SW reminder action:', e);
+          }
         }
       });
     }
@@ -93,6 +115,30 @@ export function ServiceWorkerRegistrar() {
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Auto-recover from Firestore SDK internal assertion failures.
+  // These are transient SDK bugs (e.g. watch stream "ve:-1" version counter)
+  // that cannot be fixed in user code. Reload to get a fresh connection.
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.message?.includes('INTERNAL ASSERTION FAILED')) {
+        event.preventDefault();
+        window.location.reload();
+      }
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason?.message?.includes('INTERNAL ASSERTION FAILED')) {
+        event.preventDefault();
+        window.location.reload();
+      }
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
     };
   }, []);
 

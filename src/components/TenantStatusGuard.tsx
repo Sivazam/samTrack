@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { isTenantScopedRole } from '@/lib/role-utils';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, COLLECTIONS } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,8 +27,8 @@ export function TenantStatusGuard({ children, fallback }: TenantStatusGuardProps
         return;
       }
 
-      // Only check tenant status for college admins and PROs
-      if (user.role !== 'COLLEGE_ADMIN' && user.role !== 'MANAGER' && user.role !== 'PRO') {
+      // Only check tenant status for tenant-scoped roles
+      if (!isTenantScopedRole(user.role)) {
         return;
       }
 
@@ -66,7 +67,7 @@ export function TenantStatusGuard({ children, fallback }: TenantStatusGuardProps
   }
 
   // If no user or user doesn't need tenant status check, allow access
-  if (!user || (user.role !== 'COLLEGE_ADMIN' && user.role !== 'MANAGER' && user.role !== 'PRO')) {
+  if (!user || !isTenantScopedRole(user.role)) {
     return <>{children}</>;
   }
 

@@ -26,7 +26,7 @@ export default function TermsOfUsePage() {
             <nav className="hidden md:flex space-x-8">
               <Link href="/faq" className="text-gray-600 hover:text-gray-900">FAQ</Link>
               <Link href="/privacy-policy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link>
-              <Link href="/terms-of-use" className="text-blue-600 font-medium">Terms of Use</Link>
+              <Link href="/terms-of-use" className="text-emerald-600 font-medium">Terms of Use</Link>
               <Link href="/help-center" className="text-gray-600 hover:text-gray-900">Help Center</Link>
               <Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link>
             </nav>
@@ -35,14 +35,14 @@ export default function TermsOfUsePage() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <FileText className="h-16 w-16 mx-auto mb-4" />
           <h1 className="text-4xl font-bold mb-4">Terms of Use</h1>
-          <p className="text-xl text-blue-100">
+          <p className="text-xl text-emerald-100">
             These terms govern your use of Samhitha's college admissions lead tracking system.
           </p>
-          <p className="text-blue-200 mt-2">Last updated: April 2026</p>
+          <p className="text-emerald-200 mt-2">Last updated: April 2026</p>
         </div>
       </div>
 
@@ -56,7 +56,7 @@ export default function TermsOfUsePage() {
               <CheckCircle className="h-6 w-6 mr-3 text-green-600" />
               Acceptance of Terms
             </h2>
-            <div className="bg-blue-50 p-6 rounded-lg">
+            <div className="bg-emerald-50 p-6 rounded-lg">
               <p className="text-gray-700 leading-relaxed mb-4">
                 Welcome to Samhitha! These Terms of Use ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and Samhitha ("we," "us," or "our") governing your use of our college admissions lead tracking system (the "Service").
               </p>
@@ -69,7 +69,7 @@ export default function TermsOfUsePage() {
           {/* Description of Service */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Users className="h-6 w-6 mr-3 text-blue-600" />
+              <Users className="h-6 w-6 mr-3 text-emerald-600" />
               Description of Service
             </h2>
             <div className="text-gray-600 space-y-4">
@@ -105,7 +105,7 @@ export default function TermsOfUsePage() {
           {/* User Responsibilities */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <Shield className="h-6 w-6 mr-3 text-purple-600" />
+              <Shield className="h-6 w-6 mr-3 text-teal-600" />
               User Responsibilities
             </h2>
 
@@ -136,7 +136,7 @@ export default function TermsOfUsePage() {
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Accurate Information</h3>
-                <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="bg-emerald-50 p-4 rounded-lg">
                   <ul className="text-gray-700 space-y-2">
                     <li className="flex items-start">
                       <CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -283,7 +283,7 @@ export default function TermsOfUsePage() {
           {/* Intellectual Property */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-              <FileText className="h-6 w-6 mr-3 text-indigo-600" />
+              <FileText className="h-6 w-6 mr-3 text-blue-600" />
               Intellectual Property
             </h2>
 
@@ -292,7 +292,7 @@ export default function TermsOfUsePage() {
                 All content, features, and functionality of the Service, including but not limited to text, graphics, logos, images, software, and data compilations, are the exclusive property of Samhitha or its licensors and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
               </p>
 
-              <div className="bg-indigo-50 p-6 rounded-lg">
+              <div className="bg-blue-50 p-6 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-3">Your Rights</h3>
                 <ul className="space-y-2">
                   <li className="flex items-start">

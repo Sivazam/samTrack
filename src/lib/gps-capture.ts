@@ -3,6 +3,7 @@ export interface GpsLocation {
   lng: number;
   accuracyMeters: number;
   capturedAt: Date;
+  accuracyWarning?: string;
 }
 
 export async function captureGPS(opts: { required: boolean }): Promise<GpsLocation | null> {
@@ -13,12 +14,16 @@ export async function captureGPS(opts: { required: boolean }): Promise<GpsLocati
 
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracyMeters: pos.coords.accuracy,
-        capturedAt: new Date(),
-      }),
+      (pos) => {
+        const result: GpsLocation = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracyMeters: pos.coords.accuracy,
+          capturedAt: new Date(),
+        };
+
+        resolve(result);
+      },
       (err) => {
         if (opts.required) {
           const messages: Record<number, string> = {

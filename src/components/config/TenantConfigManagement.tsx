@@ -24,6 +24,8 @@ export function TenantConfigManagement() {
     if (!user?.tenantId) return;
     const unsub: Unsubscribe = onSnapshot(doc(db, 'tenantConfig', user.tenantId), snap => {
       if (snap.exists()) setConfig(snap.data() as TenantConfig);
+    }, (error) => {
+      console.warn('Snapshot listener error:', error.code || error.message);
     });
     return () => unsub();
   }, [user?.tenantId]);
@@ -66,30 +68,71 @@ export function TenantConfigManagement() {
             <CardContent>
               <div className="space-y-2">
                 {config.statusOptions.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input className="w-20 h-8 text-xs" value={opt.code} onChange={e => {
-                      const updated = [...config.statusOptions]; updated[i] = { ...updated[i], code: e.target.value.toUpperCase() };
-                      setConfig({ ...config, statusOptions: updated });
-                    }} placeholder="CODE" />
-                    <Input className="flex-1 h-8 text-xs" value={opt.label} onChange={e => {
-                      const updated = [...config.statusOptions]; updated[i] = { ...updated[i], label: e.target.value };
-                      setConfig({ ...config, statusOptions: updated });
-                    }} placeholder="Label" />
-                    <input type="color" value={opt.color} onChange={e => {
-                      const updated = [...config.statusOptions]; updated[i] = { ...updated[i], color: e.target.value };
-                      setConfig({ ...config, statusOptions: updated });
-                    }} className="w-8 h-8 rounded cursor-pointer" />
-                    <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={opt.active} onChange={e => {
-                      const updated = [...config.statusOptions]; updated[i] = { ...updated[i], active: e.target.checked };
-                      setConfig({ ...config, statusOptions: updated });
-                    }} /> Active</label>
-                    <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={opt.isTerminal} onChange={e => {
-                      const updated = [...config.statusOptions]; updated[i] = { ...updated[i], isTerminal: e.target.checked };
-                      setConfig({ ...config, statusOptions: updated });
-                    }} /> Terminal</label>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      setConfig({ ...config, statusOptions: config.statusOptions.filter((_, j) => j !== i) });
-                    }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                  <div key={i} className="space-y-1 border border-slate-100 rounded-lg p-2">
+                    <div className="flex items-center gap-2">
+                      <Input className="w-20 h-8 text-xs" value={opt.code} onChange={e => {
+                        const updated = [...config.statusOptions]; updated[i] = { ...updated[i], code: e.target.value.toUpperCase() };
+                        setConfig({ ...config, statusOptions: updated });
+                      }} placeholder="CODE" />
+                      <Input className="flex-1 h-8 text-xs" value={opt.label} onChange={e => {
+                        const updated = [...config.statusOptions]; updated[i] = { ...updated[i], label: e.target.value };
+                        setConfig({ ...config, statusOptions: updated });
+                      }} placeholder="Label" />
+                      <input type="color" value={opt.color} onChange={e => {
+                        const updated = [...config.statusOptions]; updated[i] = { ...updated[i], color: e.target.value };
+                        setConfig({ ...config, statusOptions: updated });
+                      }} className="w-8 h-8 rounded cursor-pointer" />
+                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={opt.active} onChange={e => {
+                        const updated = [...config.statusOptions]; updated[i] = { ...updated[i], active: e.target.checked };
+                        setConfig({ ...config, statusOptions: updated });
+                      }} /> Active</label>
+                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={opt.isTerminal} onChange={e => {
+                        const updated = [...config.statusOptions]; updated[i] = { ...updated[i], isTerminal: e.target.checked };
+                        setConfig({ ...config, statusOptions: updated });
+                      }} /> Terminal</label>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setConfig({ ...config, statusOptions: config.statusOptions.filter((_, j) => j !== i) });
+                      }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    </div>
+                    {/* Auto-reminder config row */}
+                    <div className="flex items-center gap-2 pl-1">
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap">Auto-reminder:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-slate-500">Result date</span>
+                        <input
+                          type="date"
+                          value={opt.autoReminderDate || ''}
+                          onChange={e => {
+                            const updated = [...config.statusOptions];
+                            updated[i] = { ...updated[i], autoReminderDate: e.target.value || undefined };
+                            setConfig({ ...config, statusOptions: updated });
+                          }}
+                          className="h-6 text-[10px] border border-slate-200 rounded px-1 bg-slate-50"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-slate-500">+days</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={opt.autoReminderOffset ?? ''}
+                          onChange={e => {
+                            const updated = [...config.statusOptions];
+                            const val = e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value) || 0);
+                            updated[i] = { ...updated[i], autoReminderOffset: val };
+                            setConfig({ ...config, statusOptions: updated });
+                          }}
+                          className="h-6 w-14 text-[10px] border border-slate-200 rounded px-1 bg-slate-50"
+                          placeholder="0"
+                        />
+                      </div>
+                      {opt.autoReminderDate && (
+                        <span className="text-[10px] text-emerald-600 font-medium">
+                          → {new Date(new Date(opt.autoReminderDate).getTime() + (opt.autoReminderOffset || 0) * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

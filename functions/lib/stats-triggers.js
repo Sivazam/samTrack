@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.onUserUpdated = exports.onReminderStatusChanged = exports.onReminderCreated = exports.onTeamDeleted = exports.onTeamUpdated = exports.onStatusUpdateCreated = exports.onLeadDeleted = exports.onLeadUpdated = exports.onLeadCreated = void 0;
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const utils_1 = require("./utils");
 const db = admin.firestore();
@@ -84,7 +84,7 @@ exports.onLeadUpdated = functions.firestore
     const assignmentRef = db.collection('leadAssignments').doc(assignmentId);
     const searchFields = (0, utils_1.buildLeadAssignmentSearchFields)(after);
     await assignmentRef.set(Object.assign(Object.assign({ tenantId,
-        leadId, teamId: after.teamId || null, assignedPROUids: after.assignedPROUids || [] }, searchFields), { lastStatusCode: after.lastStatusCode || null, nextFollowupAt: after.nextFollowupAt || null, active: after.active !== false, updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
+        leadId, teamId: after.teamId || null, assignedPROUids: after.assignedPROUids || [] }, searchFields), { lastStatusCode: after.lastStatusCode || null, lastStatusLabel: after.lastStatusLabel || null, lastApproachType: after.lastApproachType || null, nextFollowupAt: after.nextFollowupAt || null, joinedCollegeName: after.joinedCollegeName || null, active: after.active !== false, updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
     // Update active lead counts if active status changed
     if (before.active !== after.active) {
         const statsRef = db.collection('tenant_stats').doc(tenantId);
@@ -215,6 +215,39 @@ exports.onTeamUpdated = functions.firestore
             }
         }
     }
+    // Update PRO user docs with teamId and assignedDivisionIds
+    if (membersChanged) {
+        const oldMembers = before.memberUids || [];
+        const newMembers = after.memberUids || [];
+        const removedMembers = oldMembers.filter((uid) => !newMembers.includes(uid));
+        const userNow = admin.firestore.FieldValue.serverTimestamp();
+        // Clear removed members
+        for (const uid of removedMembers) {
+            await db.collection('users').doc(uid).update({
+                teamId: null,
+                assignedDivisionIds: [],
+                updatedAt: userNow,
+            });
+        }
+        // Update current members
+        for (const uid of newMembers) {
+            await db.collection('users').doc(uid).update({
+                teamId,
+                assignedDivisionIds: after.divisionIds || [],
+                updatedAt: userNow,
+            });
+        }
+    }
+    else if (divisionsChanged) {
+        // Divisions changed but members didn't — just update assignedDivisionIds for all members
+        const userNow = admin.firestore.FieldValue.serverTimestamp();
+        for (const uid of (after.memberUids || [])) {
+            await db.collection('users').doc(uid).update({
+                assignedDivisionIds: after.divisionIds || [],
+                updatedAt: userNow,
+            });
+        }
+    }
 });
 // ─── onTeamDeleted ────────────────────────────────────────────────────
 exports.onTeamDeleted = functions.firestore
@@ -231,6 +264,15 @@ exports.onTeamDeleted = functions.firestore
     const now = admin.firestore.FieldValue.serverTimestamp();
     for (const doc of assignmentSnap.docs) {
         await doc.ref.update({ teamId: null, assignedPROUids: [], updatedAt: now });
+    }
+    // Clear teamId/assignedDivisionIds on PRO user docs
+    const memberUids = teamData.memberUids || [];
+    for (const uid of memberUids) {
+        await db.collection('users').doc(uid).update({
+            teamId: null,
+            assignedDivisionIds: [],
+            updatedAt: now,
+        });
     }
 });
 // ─── onReminderCreated ────────────────────────────────────────────────

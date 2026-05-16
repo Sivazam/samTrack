@@ -47,7 +47,7 @@ exports.validateUsername = validateUsername;
 exports.validateUniqueLeadId = validateUniqueLeadId;
 exports.buildLeadAssignmentSearchFields = buildLeadAssignmentSearchFields;
 const admin = __importStar(require("firebase-admin"));
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 // ─── Auth Verification ───────────────────────────────────────────────────
 async function verifyAuthToken(context) {
     if (!context.auth) {
@@ -160,26 +160,22 @@ function validateUsername(username) {
 }
 // ─── Lead ID Validation ─────────────────────────────────────────────────
 function validateUniqueLeadId(id) {
-    if (!id || id.trim().length === 0)
-        return 'Lead ID cannot be empty';
-    if (id.length > 64)
-        return 'Lead ID must be 64 characters or fewer';
-    if (/\s/.test(id))
-        return 'Lead ID cannot contain whitespace';
+    const n = Number(id);
+    if (!Number.isInteger(n) || n <= 0)
+        return 'Lead ID must be a positive whole number';
     return null;
 }
 // ─── Lead Assignment Search Fields ──────────────────────────────────────
 function buildLeadAssignmentSearchFields(lead, division) {
     const parentName = (lead.parentName || '').trim();
     const studentName = (lead.studentName || '').trim();
-    const uid = String(lead.uniqueLeadId || '').trim();
+    const uid = Number(lead.uniqueLeadId);
     return {
         parentName,
         parentName_lowercase: parentName.toLowerCase(),
         studentName,
         studentName_lowercase: studentName.toLowerCase(),
         uniqueLeadId: uid,
-        uniqueLeadId_lowercase: uid.toLowerCase(),
         parentPhone: cleanPhoneStr(lead.parentPhone),
         studentPhone: cleanPhoneStr(lead.studentPhone),
         divisionId: lead.divisionId || '',

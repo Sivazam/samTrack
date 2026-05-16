@@ -1,15 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Building2, Smartphone, ShieldCheck, BarChart3 } from 'lucide-react';
+import { GraduationCap, Smartphone, ShieldCheck, BarChart3 } from 'lucide-react';
 
 const steps = [
   {
-    icon: Building2,
+    icon: GraduationCap,
     step: '01',
     title: 'Set Up Your College',
     description:
-      'Create your college account, add your divisions and routes, and invite your PROs.',
+      'Create your college account, add your areas and routes, and invite your PROs.',
   },
   {
     icon: Smartphone,

@@ -25,7 +25,7 @@ const tagLabels: Record<string, Record<Lang, string>> = {
 };
 
 const tagColors: Record<string, string> = {
-  feature: 'bg-purple-100 text-purple-700 border-purple-200',
+  feature: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   improvement: 'bg-blue-100 text-blue-700 border-blue-200',
   security: 'bg-red-100 text-red-700 border-red-200',
 };
@@ -149,7 +149,7 @@ const updates: FeatureUpdate[] = [
     },
     highlights: {
       en: [
-        'Payments count in purple, no-payment visits count in orange — easy to compare',
+        'Payments count in green, no-payment visits count in orange — easy to compare',
         'Loads faster with behind-the-scenes counting',
       ],
       te: [
@@ -294,7 +294,7 @@ export function WhatsNewFAB() {
       {/* Floating Action Button — bottom-20 on mobile to clear bottom nav, bottom-6 on desktop */}
       <motion.button
         onClick={handleOpen}
-        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40 flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-shadow"
+        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40 flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg hover:shadow-xl transition-shadow"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         title="What's New"
@@ -336,7 +336,7 @@ export function WhatsNewFAB() {
               drag={false}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-purple-600 to-indigo-600 text-white shrink-0">
+              <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-600 to-teal-600 text-white shrink-0">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
                   <h2 className="text-lg font-semibold">
@@ -358,7 +358,7 @@ export function WhatsNewFAB() {
                   onClick={() => toggleLang('te')}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     lang === 'te'
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-emerald-600 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}
                 >
@@ -368,7 +368,7 @@ export function WhatsNewFAB() {
                   onClick={() => toggleLang('en')}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     lang === 'en'
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-emerald-600 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}
                 >
@@ -389,7 +389,7 @@ export function WhatsNewFAB() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.06 }}
-                      className="rounded-xl border bg-gray-50 dark:bg-gray-800 hover:border-purple-300 transition-colors overflow-hidden"
+                      className="rounded-xl border bg-gray-50 dark:bg-gray-800 hover:border-emerald-300 transition-colors overflow-hidden"
                     >
                       {/* Image or gradient placeholder */}
                       {update.image ? (
@@ -402,8 +402,8 @@ export function WhatsNewFAB() {
                           />
                         </div>
                       ) : (
-                        <div className="w-full h-28 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 flex items-center justify-center">
-                          <div className="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 text-purple-500">
+                        <div className="w-full h-28 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 flex items-center justify-center">
+                          <div className="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 text-emerald-500">
                             {update.icon}
                           </div>
                         </div>
@@ -427,7 +427,7 @@ export function WhatsNewFAB() {
                         <ul className="space-y-1">
                           {update.highlights[lang].map((h, i) => (
                             <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                              <span className="text-purple-500 mt-0.5 shrink-0">•</span>
+                              <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
                               <span>{h}</span>
                             </li>
                           ))}

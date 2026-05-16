@@ -80,13 +80,15 @@ export function initializeFirebaseAdmin(): App {
       adminApp = initializeApp({
         credential: cert(serviceAccount),
         // CRITICAL: Explicitly specify projectId to prevent 401 mismatches if env isn't detected
-        projectId: serviceAccount.projectId || process.env.FIREBASE_PROJECT_ID || 'plkapp-8c052'
+        projectId: serviceAccount.projectId || process.env.FIREBASE_PROJECT_ID || 'samhitaadmissiontracker'
       });
       console.log(`✅ Firebase Admin initialized via ${source} for project: ${adminApp.options.projectId}`);
     } else {
       // 4. Automatic Initialization (GCP environment)
       try {
-        adminApp = initializeApp();
+        adminApp = initializeApp({
+          projectId: process.env.FIREBASE_PROJECT_ID || 'samhitaadmissiontracker',
+        });
         console.log('✅ Firebase Admin initialized with default credentials (GCP)');
       } catch (e: any) {
         console.error('❌ Firebase Admin Critical Error: No credentials found. Add FIREBASE_SERVICE_ACCOUNT_KEY to Vercel.');
