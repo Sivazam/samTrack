@@ -1,6 +1,6 @@
 # 🏥 pHLynk (PharmaLync) - Master Documentation
 
-> **Note:** This document is the **comprehensive source of truth** for the pHLynk project. It accurately reflects the current codebase state, including Next.js 16, Firebase 12, PWA features, and the latest business logic for payment collection and worker assignment....
+> **Note:** This document is the **comprehensive source of truth** for the pHLynk project. It accurately reflects the current codebs ase state, including Next.js 16, Firebase 12, PWA features, and the latest business logic for payment collection and worker assignment....
 
 ## 📋 Table of Contents
 - [Project Overview](#project-overview)
