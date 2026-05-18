@@ -70,6 +70,14 @@
       ]
     },
     {
+      "collectionGroup": "reminders",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "recipientUids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "statusUpdates",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

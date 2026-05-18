@@ -203,6 +203,7 @@ export default function PRODashboard() {
     // to sidestep any composite-index requirement for (array-contains + in + orderBy).
     const q = query(
       collection(db, 'reminders'),
+      where('tenantId', '==', user.tenantId),
       where('recipientUids', 'array-contains', user.uid),
       where('status', 'in', ['PENDING', 'SENT', 'SNOOZED']),
       limit(200)
