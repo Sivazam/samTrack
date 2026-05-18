@@ -26,7 +26,7 @@ interface CloudFunctionResponse<T = any> {
 // Critical functions → bundled into criticalApi (Gen2)
 const CRITICAL_ACTIONS = new Set([
   'createUser', 'updateUser', 'deactivateUser', 'manageTeam',
-  'createLead', 'bulkCreateLeads', 'updateLead', 'reassignLeadTeam', 'bulkReassignLeads',
+  'createLead', 'createReferralLead', 'bulkCreateLeads', 'updateLead', 'reassignLeadTeam', 'bulkReassignLeads',
   'syncLeadAssignments', 'logStatusUpdate', 'manageReminder',
   'updateTenantConfig', 'generateReport', 'getDashboardStats',
   // Super Admin

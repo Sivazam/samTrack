@@ -608,16 +608,8 @@ export async function createReferralLeadHandler(payload: any, request: CallableR
   const idError = validateUniqueLeadId(uniqueLeadId);
   if (idError) throw new functions.https.HttpsError('invalid-argument', idError);
 
-  // PROs can only create leads in their assigned divisions
-  if (token.role === 'PRO') {
-    const userDoc = await db.collection('users').doc(token.uid).get();
-    if (userDoc.exists) {
-      const assignedDivisionIds: string[] = userDoc.data()!.assignedDivisionIds || [];
-      if (assignedDivisionIds.length > 0 && !assignedDivisionIds.includes(divisionId)) {
-        throw new functions.https.HttpsError('permission-denied', 'Division not assigned to your team');
-      }
-    }
-  }
+  // Referrals: PROs can create leads in ANY division (not restricted to assigned divisions),
+  // since referrals come from contacts that may live outside the PRO's normal coverage area.
 
   // Check Lead ID uniqueness
   const existing = await db.collection('leads')

@@ -363,6 +363,20 @@ export default function PRODashboard() {
     return daySheetUpdates.filter((u: any) => u.approachType === daySheetApproachFilter);
   }, [daySheetUpdates, daySheetApproachFilter]);
 
+  // Today's reminders (for home banner + leads tab)
+  const todayReminders = useMemo(() => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+    return reminders.filter((r: any) => {
+      try {
+        const d = r.dueAt?.toDate?.() || r.dueAt;
+        const t = d instanceof Date ? d.getTime() : new Date(d).getTime();
+        return t >= startOfDay && t < endOfDay;
+      } catch { return false; }
+    });
+  }, [reminders]);
+
   // Profile stats
   const profileStats = useMemo(() => {
     const today = new Date();
@@ -565,7 +579,7 @@ export default function PRODashboard() {
 
       {/* ── Reminders Banner ──────────────────────────────────────────── */}
       <AnimatePresence>
-        {reminders.length > 0 && (
+        {todayReminders.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -575,7 +589,7 @@ export default function PRODashboard() {
           >
             <div className="flex items-center gap-2 px-4 py-2">
               <Bell className="h-3.5 w-3.5 text-white" />
-              <span className="text-xs font-semibold text-white">{reminders.length} follow-up{reminders.length !== 1 ? 's' : ''} due today</span>
+              <span className="text-xs font-semibold text-white">{todayReminders.length} follow-up{todayReminders.length !== 1 ? 's' : ''} due today</span>
               <ChevronRight className="h-3.5 w-3.5 text-white/70 ml-auto" />
             </div>
           </motion.div>
@@ -641,6 +655,64 @@ export default function PRODashboard() {
                   <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 p-3 flex flex-col items-center shadow-sm">
                     <span className="text-[22px] font-extrabold text-white leading-none">{leadStats.remaining}</span>
                     <span className="text-[10px] text-amber-100 font-medium mt-0.5">Remaining</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Today's Follow-ups (home page) ──────────────────── */}
+              {!loading && todayReminders.length > 0 && (
+                <div className="px-3 pt-3 pb-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Bell className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-xs font-bold text-slate-800">Today's Follow-ups</span>
+                      <Badge className="h-4 min-w-4 px-1.5 text-[9px] bg-amber-50 text-amber-700 border-0 font-bold">
+                        {todayReminders.length}
+                      </Badge>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('reminders')}
+                      className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700"
+                    >
+                      View all →
+                    </button>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 snap-x">
+                    {todayReminders.slice(0, 8).map((reminder: any) => {
+                      const isOverdueReminder = isOverdue(reminder.dueAt);
+                      return (
+                        <button
+                          key={reminder.id}
+                          onClick={() => setSelectedLeadId(reminder.leadId)}
+                          className={cn(
+                            "shrink-0 snap-start w-[210px] text-left rounded-xl border bg-white p-2.5 shadow-sm hover:shadow-md transition-all",
+                            isOverdueReminder ? "border-red-200" : "border-amber-100"
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <div className={cn(
+                              "h-5 w-5 rounded-full flex items-center justify-center shrink-0",
+                              isOverdueReminder ? "bg-red-100" : "bg-amber-50"
+                            )}>
+                              <Bell className={cn("h-3 w-3", isOverdueReminder ? "text-red-500" : "text-amber-500")} />
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-800 truncate flex-1">{reminder.leadDisplayName}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className={cn("h-2.5 w-2.5", isOverdueReminder ? "text-red-400" : "text-amber-400")} />
+                            <span className={cn("text-[9px] font-medium", isOverdueReminder ? "text-red-600" : "text-amber-600")}>
+                              {formatDate(reminder.dueAt)}
+                            </span>
+                            {isOverdueReminder && (
+                              <Badge className="text-[8px] bg-red-100 text-red-700 border-0 font-bold px-1 py-0 ml-auto">OVERDUE</Badge>
+                            )}
+                          </div>
+                          {reminder.note && (
+                            <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{reminder.note}</p>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
