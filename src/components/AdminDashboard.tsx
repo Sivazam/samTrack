@@ -126,7 +126,8 @@ export default function AdminDashboard() {
       collection(db, 'reminders'),
       where('tenantId', '==', user.tenantId),
       where('status', 'in', ['PENDING', 'SENT']),
-      where('dueAt', '<=', Timestamp.fromDate(endOfDay))
+      where('dueAt', '<=', Timestamp.fromDate(endOfDay)),
+      orderBy('dueAt', 'asc')
     );
     const unsubscribe: Unsubscribe = onSnapshot(q, (snapshot) => {
       setTodayReminders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Reminder)));

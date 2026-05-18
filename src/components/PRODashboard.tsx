@@ -199,17 +199,24 @@ export default function PRODashboard() {
     if (!user?.uid || !user?.tenantId) return;
     // Show pending/sent/snoozed reminders. We do NOT cap by dueAt so future
     // reminders set via "Set Reminder" or Log Update Form appear immediately.
+    // NOTE: We deliberately omit orderBy in the Firestore query (sort client-side)
+    // to sidestep any composite-index requirement for (array-contains + in + orderBy).
     const q = query(
       collection(db, 'reminders'),
       where('recipientUids', 'array-contains', user.uid),
       where('status', 'in', ['PENDING', 'SENT', 'SNOOZED']),
-      orderBy('dueAt', 'asc'),
-      limit(100)
+      limit(200)
     );
     const unsubscribe: Unsubscribe = onSnapshot(q, (snapshot) => {
-      setReminders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder)));
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder));
+      list.sort((a: any, b: any) => {
+        const ta = a.dueAt?.toDate?.()?.getTime?.() ?? 0;
+        const tb = b.dueAt?.toDate?.()?.getTime?.() ?? 0;
+        return ta - tb;
+      });
+      setReminders(list);
     }, (error) => {
-      console.warn('Reminders listener error:', error.code || error.message);
+      console.error('[PRODashboard] Reminders listener error:', error?.code, error?.message, error);
       setReminders([]);
     });
     return () => unsubscribe();
@@ -664,9 +671,9 @@ export default function PRODashboard() {
                 <div className="px-3 pt-3 pb-1">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Bell className="h-3.5 w-3.5 text-amber-500" />
+                      <Bell className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
                       <span className="text-xs font-bold text-slate-800">Today's Follow-ups</span>
-                      <Badge className="h-4 min-w-4 px-1.5 text-[9px] bg-amber-50 text-amber-700 border-0 font-bold">
+                      <Badge className="h-4 min-w-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 font-bold animate-pulse">
                         {todayReminders.length}
                       </Badge>
                     </div>
@@ -685,27 +692,36 @@ export default function PRODashboard() {
                           key={reminder.id}
                           onClick={() => setSelectedLeadId(reminder.leadId)}
                           className={cn(
-                            "shrink-0 snap-start w-[210px] text-left rounded-xl border bg-white p-2.5 shadow-sm hover:shadow-md transition-all",
-                            isOverdueReminder ? "border-red-200" : "border-amber-100"
+                            "shrink-0 snap-start w-[210px] text-left rounded-xl border-2 bg-white p-2.5 shadow-md hover:shadow-lg transition-all relative overflow-hidden",
+                            isOverdueReminder
+                              ? "border-red-300 ring-2 ring-red-200/50"
+                              : "border-amber-400 ring-2 ring-amber-200/60"
                           )}
                         >
+                          {/* Pulsing accent strip */}
+                          <div className={cn(
+                            "absolute top-0 left-0 right-0 h-0.5 animate-pulse",
+                            isOverdueReminder ? "bg-red-500" : "bg-amber-500"
+                          )} />
                           <div className="flex items-center gap-1.5 mb-1">
                             <div className={cn(
                               "h-5 w-5 rounded-full flex items-center justify-center shrink-0",
-                              isOverdueReminder ? "bg-red-100" : "bg-amber-50"
+                              isOverdueReminder ? "bg-red-100" : "bg-amber-100"
                             )}>
-                              <Bell className={cn("h-3 w-3", isOverdueReminder ? "text-red-500" : "text-amber-500")} />
+                              <Bell className={cn("h-3 w-3", isOverdueReminder ? "text-red-500" : "text-amber-600")} />
                             </div>
                             <span className="text-[11px] font-semibold text-slate-800 truncate flex-1">{reminder.leadDisplayName}</span>
+                            {isOverdueReminder ? (
+                              <Badge className="text-[8px] bg-red-500 text-white border-0 font-bold px-1 py-0">OVERDUE</Badge>
+                            ) : (
+                              <Badge className="text-[8px] bg-amber-500 text-white border-0 font-bold px-1 py-0">TODAY</Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
-                            <Clock className={cn("h-2.5 w-2.5", isOverdueReminder ? "text-red-400" : "text-amber-400")} />
-                            <span className={cn("text-[9px] font-medium", isOverdueReminder ? "text-red-600" : "text-amber-600")}>
+                            <Clock className={cn("h-2.5 w-2.5", isOverdueReminder ? "text-red-400" : "text-amber-500")} />
+                            <span className={cn("text-[9px] font-medium", isOverdueReminder ? "text-red-600" : "text-amber-700")}>
                               {formatDate(reminder.dueAt)}
                             </span>
-                            {isOverdueReminder && (
-                              <Badge className="text-[8px] bg-red-100 text-red-700 border-0 font-bold px-1 py-0 ml-auto">OVERDUE</Badge>
-                            )}
                           </div>
                           {reminder.note && (
                             <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{reminder.note}</p>
@@ -1065,6 +1081,18 @@ export default function PRODashboard() {
                     const isOverdueReminder = isOverdue(reminder.dueAt);
                     const isBusy = reminderActionLoading === reminder.id;
                     const showSnooze = snoozeMenuId === reminder.id;
+                    // Is this reminder due today?
+                    let isTodayReminder = false;
+                    try {
+                      const d = (reminder as any).dueAt?.toDate?.() || (reminder as any).dueAt;
+                      if (d instanceof Date) {
+                        const now = new Date();
+                        isTodayReminder =
+                          d.getFullYear() === now.getFullYear() &&
+                          d.getMonth() === now.getMonth() &&
+                          d.getDate() === now.getDate();
+                      }
+                    } catch { /* ignore */ }
 
                     const doAction = async (subAction: 'complete' | 'cancel' | 'snooze', snoozeDuration?: string) => {
                       setReminderActionLoading(reminder.id);
@@ -1082,8 +1110,12 @@ export default function PRODashboard() {
                       <motion.div key={reminder.id} variants={item} layout>
                         <div
                           className={cn(
-                            "rounded-xl bg-white shadow-sm border transition-all",
-                            isOverdueReminder ? "border-red-200 bg-red-50/30" : "border-amber-100"
+                            "rounded-xl bg-white shadow-sm border-2 transition-all",
+                            isOverdueReminder
+                              ? "border-red-300 bg-red-50/40 shadow-red-100"
+                              : isTodayReminder
+                                ? "border-amber-400 bg-amber-50/40 shadow-amber-100 ring-2 ring-amber-200/60"
+                                : "border-slate-100"
                           )}
                         >
                           {/* Main row — tap to open lead */}
@@ -1110,6 +1142,9 @@ export default function PRODashboard() {
                                 </span>
                                 {isOverdueReminder && (
                                   <Badge className="text-[9px] bg-red-100 text-red-700 border-0 font-bold px-1.5 py-0">OVERDUE</Badge>
+                                )}
+                                {!isOverdueReminder && isTodayReminder && (
+                                  <Badge className="text-[9px] bg-amber-500 text-white border-0 font-bold px-1.5 py-0 animate-pulse">TODAY</Badge>
                                 )}
                                 <Badge variant="outline" className="text-[9px] px-1.5 border-amber-200 text-amber-700">
                                   {reminder.status}
