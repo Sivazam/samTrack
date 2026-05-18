@@ -79,6 +79,30 @@ export function LogStatusUpdateForm({ lead, onClose }: LogStatusUpdateFormProps)
   const activeStatusOptions = tenantConfig?.statusOptions?.filter(o => o.active) || [];
   const activeCollegeOptions = tenantConfig?.joinedCollegeOptions?.filter(o => o.active) || [];
 
+  // Auto-select college based on status code:
+  //  - JOINED_SAMHITHA → pick the "Samhitha" college option (code contains SAMHITHA or matches own college name)
+  //  - JOINED_OTHER → pick the "Others" college option (or first non-Samhitha)
+  // The user can still change it manually. Re-maps whenever status changes.
+  useEffect(() => {
+    if (!statusCode || activeCollegeOptions.length === 0) return;
+    if (!statusCode.startsWith('JOINED_')) return;
+
+    const findByCodeOrLabel = (matcher: (s: string) => boolean) => {
+      return activeCollegeOptions.find(opt =>
+        matcher((opt.code || '').toUpperCase()) || matcher((opt.label || '').toUpperCase())
+      );
+    };
+
+    let pick: typeof activeCollegeOptions[number] | undefined;
+    if (statusCode === 'JOINED_SAMHITHA') {
+      pick = findByCodeOrLabel(s => s.includes('SAMHITHA') || s === 'SELF');
+    } else if (statusCode === 'JOINED_OTHER') {
+      pick = findByCodeOrLabel(s => s === 'OTHERS' || s === 'OTHER');
+    }
+    if (pick) setJoinedCollegeName(pick.code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusCode, activeCollegeOptions.length]);
+
   const handleSubmit = async () => {
     if (!statusCode) return;
 
