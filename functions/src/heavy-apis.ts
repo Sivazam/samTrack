@@ -35,6 +35,34 @@ async function findTeamForDivision(tenantId: string, divisionId: string): Promis
   return snap.empty ? null : snap.docs[0];
 }
 
+// Helper: when a reminder is completed/cancelled, clear the lead's denormed
+// follow-up fields IF this reminder was the active follow-up. This keeps the
+// admin/manager lead cards from showing a stale "Overdue" badge.
+async function clearLeadFollowupIfActive(tenantId: string, leadId: string | undefined, reminderId: string): Promise<void> {
+  if (!leadId) return;
+  try {
+    const leadRef = db.collection('leads').doc(leadId);
+    const leadSnap = await leadRef.get();
+    if (!leadSnap.exists) return;
+    const data = leadSnap.data()!;
+    const activeId = data.nextFollowupReminderId;
+    // Only clear if this reminder was the active follow-up (or no active set).
+    if (activeId && activeId !== reminderId) return;
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    await leadRef.update({
+      nextFollowupAt: admin.firestore.FieldValue.delete(),
+      nextFollowupReminderId: admin.firestore.FieldValue.delete(),
+      updatedAt: now,
+    });
+    await db.collection('leadAssignments').doc(`${tenantId}__${leadId}`).set({
+      nextFollowupAt: admin.firestore.FieldValue.delete(),
+      updatedAt: now,
+    }, { merge: true });
+  } catch (e) {
+    console.warn('clearLeadFollowupIfActive failed:', e);
+  }
+}
+
 // Helper to get all admin/manager UIDs for a tenant
 async function getTenantAdminManagerUids(tenantId: string): Promise<string[]> {
   const snap = await db.collection('users')
@@ -1147,22 +1175,31 @@ export async function logStatusUpdateHandler(payload: any, request: CallableRequ
 
   await batch.commit();
 
-  // Auto-complete previous PENDING reminder for this lead
+  // Auto-complete ALL previous PENDING reminders for this lead (tenant-scoped)
+  let autoCompletedAny = false;
   try {
     const reminderSnap = await db.collection('reminders')
+      .where('tenantId', '==', tenantId)
       .where('leadId', '==', leadId)
       .where('status', '==', 'PENDING')
-      .limit(1)
       .get();
     if (!reminderSnap.empty) {
-      await reminderSnap.docs[0].ref.update({
-        status: 'COMPLETED',
-        completedAt: now,
-        completedByUid: token.uid,
-        updatedAt: now,
+      const completeBatch = db.batch();
+      reminderSnap.docs.forEach(d => {
+        completeBatch.update(d.ref, {
+          status: 'COMPLETED',
+          completedAt: now,
+          completedByUid: token.uid,
+          updatedAt: now,
+        });
       });
+      await completeBatch.commit();
+      autoCompletedAny = true;
     }
   } catch (_) {}
+
+  // Determine if status is terminal (JOINED_* / NOT_INTERESTED_*) — no further follow-ups expected
+  const isTerminalStatus = /^(JOINED_|NOT_INTERESTED_)/.test(statusCode);
 
   // ─── If the PRO provided a next follow-up date, create a reminder ─────
   // This is the "follow-up reminder set via Log Update form" path the user expects.
@@ -1218,16 +1255,35 @@ export async function logStatusUpdateHandler(payload: any, request: CallableRequ
           updatedAt: now,
         });
 
-        // Denorm on the lead
+        // Denorm on the lead + leadAssignment
         await leadRef.update({
           nextFollowupAt: admin.firestore.Timestamp.fromDate(dueDate),
           nextFollowupReminderId: followupReminderRef.id,
           updatedAt: now,
         });
+        await db.collection('leadAssignments').doc(assignmentId).set({
+          nextFollowupAt: admin.firestore.Timestamp.fromDate(dueDate),
+          updatedAt: now,
+        }, { merge: true });
       }
     } catch (e) {
       console.warn('Failed to create follow-up reminder from log update:', e);
     }
+  } else if (autoCompletedAny || isTerminalStatus) {
+    // No new follow-up scheduled, but we just auto-completed pending reminders
+    // (or status went terminal). Clear stale denorm so admin/manager lead card
+    // stops showing the old date as "Overdue".
+    try {
+      await leadRef.update({
+        nextFollowupAt: admin.firestore.FieldValue.delete(),
+        nextFollowupReminderId: admin.firestore.FieldValue.delete(),
+        updatedAt: now,
+      });
+      await db.collection('leadAssignments').doc(assignmentId).set({
+        nextFollowupAt: admin.firestore.FieldValue.delete(),
+        updatedAt: now,
+      }, { merge: true });
+    } catch (_) {}
   }
 
   // Auto-create reminder if the status option has autoReminderDate
@@ -1397,34 +1453,71 @@ export async function manageReminderHandler(payload: any, request: CallableReque
       note: note || reminderData.note,
       createdByUid: token.uid,
       createdByName: reminderData.createdByName,
+      createdByRole: token.role || null,
       recipientUids: reminderData.recipientUids,
+      teamId: reminderData.teamId || null,
+      teamName: reminderData.teamName || null,
+      divisionId: reminderData.divisionId || null,
+      divisionName: reminderData.divisionName || null,
+      assignedPROUids: reminderData.assignedPROUids || [],
+      assignedPRONames: reminderData.assignedPRONames || [],
+      parentPhone: reminderData.parentPhone || null,
+      studentPhone: reminderData.studentPhone || null,
       status: 'PENDING',
       snoozedFromReminderId: reminderId,
       createdAt: now,
       updatedAt: now,
     });
 
+    // Update lead/leadAssignment denorm so admin/manager cards reflect the new due date
+    try {
+      if (reminderData.leadId) {
+        const leadSnap = await db.collection('leads').doc(reminderData.leadId).get();
+        if (leadSnap.exists && (leadSnap.data()!.nextFollowupReminderId === reminderId || !leadSnap.data()!.nextFollowupReminderId)) {
+          await leadSnap.ref.update({
+            nextFollowupAt: admin.firestore.Timestamp.fromDate(snoozeDate),
+            nextFollowupReminderId: newReminderRef.id,
+            updatedAt: now,
+          });
+          const assignmentId = `${tenantId}__${reminderData.leadId}`;
+          await db.collection('leadAssignments').doc(assignmentId).set({
+            nextFollowupAt: admin.firestore.Timestamp.fromDate(snoozeDate),
+            updatedAt: now,
+          }, { merge: true });
+        }
+      }
+    } catch (_) {}
+
     return { success: true, reminderId: newReminderRef.id };
   }
 
   if (subAction === 'complete') {
     if (!reminderId) throw new functions.https.HttpsError('invalid-argument', 'reminderId required');
+    const reminderDoc = await db.collection('reminders').doc(reminderId).get();
+    if (!reminderDoc.exists) throw new functions.https.HttpsError('not-found', 'Reminder not found');
+    const reminderData = reminderDoc.data()!;
     const now = admin.firestore.FieldValue.serverTimestamp();
-    await db.collection('reminders').doc(reminderId).update({
+    await reminderDoc.ref.update({
       status: 'COMPLETED',
       completedAt: now,
       completedByUid: token.uid,
       updatedAt: now,
     });
+    // Clear denorm on the lead/assignment if this was the active follow-up reminder
+    await clearLeadFollowupIfActive(tenantId, reminderData.leadId, reminderId);
     return { success: true };
   }
 
   if (subAction === 'cancel') {
     if (!reminderId) throw new functions.https.HttpsError('invalid-argument', 'reminderId required');
-    await db.collection('reminders').doc(reminderId).update({
+    const reminderDoc = await db.collection('reminders').doc(reminderId).get();
+    if (!reminderDoc.exists) throw new functions.https.HttpsError('not-found', 'Reminder not found');
+    const reminderData = reminderDoc.data()!;
+    await reminderDoc.ref.update({
       status: 'CANCELLED',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    await clearLeadFollowupIfActive(tenantId, reminderData.leadId, reminderId);
     return { success: true };
   }
 
